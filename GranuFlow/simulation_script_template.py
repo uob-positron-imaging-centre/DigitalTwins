@@ -76,11 +76,20 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 # Run simulation up to given time (s)
 line = "\n" + "-" * 80 + "\n"
 
-print(line + "Pouring particles and letting them settle" + line)
+print(line + "Filling GranuFlow cylinder" + line)
 sim.step_to_time(20.0)
 
-print(line + "Letting remaining falling particles settle" + line)
-sim.step_to_time(21.0)  # Letting remaining falling particles settle.
+# Calculate starting mass in the system
+
+radii = sim.radii()
+radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
+start_mass = 0
+
+for r in radii:
+    volume = (4 / 3) * np.pi * (r ** 3)
+    mass_particle = volume * density
+    start_mass = start_mass + mass_particle
+
 
 print(line + "Moving GranuFlow plate and letting particles flow" + line)
 
@@ -88,36 +97,66 @@ times = []
 positions = []
 radii = []
 velocities = []
+mass = []
 
 sim.execute_command("fix MovePlate all move/mesh mesh plate linear -0.025 0. 0.")  # Move GranuFlow plate.
 
-checkpoints_open = np.arange(21.0, 23.0, 1/120)
+sim.step_to_time(21.0)
+
+checkpoints_open = np.arange(21.0, 22.0, 1/100)
 
 for t in checkpoints_open:
     sim.step_to_time(t)
 
-    times.append(sim.time())
-    radii.append(sim.radii())
-    positions.append(sim.positions())
-    velocities.append(sim.velocities())
+    radii = sim.radii()
+    radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
+    mass_at_t = 0
+
+    for r in radii:
+
+        volume = (4/3)*np.pi*(r**3)
+        mass_particle = volume*density
+        mass_at_t = mass_at_t + mass_particle
+
+    mass.append(mass_at_t)
+
+
+    # times.append(sim.time())
+    # radii.append(sim.radii())
+    # positions.append(sim.positions())
+    # velocities.append(sim.velocities())
 
 sim.execute_command("unfix MovePlate")
 
-start_time = 23.0
-end_time = 28.0
+start_time = 22.0
+end_time = 26.0
 
-checkpoints = np.arange(start_time, end_time, 1 / 120)
+checkpoints = np.arange(start_time, end_time, 1 / 100)
 
 for t in checkpoints:
     sim.step_to_time(t)
 
-    times.append(sim.time())
-    radii.append(sim.radii())
-    positions.append(sim.positions())
-    velocities.append(sim.velocities())
+    radii = sim.radii()
+    radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
+    mass_at_t = 0
+
+    for r in radii:
+
+        volume = (4/3)*np.pi*(r**3)
+        mass_particle = volume*density
+        mass_at_t = mass_at_t + mass_particle
+
+    mass.append(mass_at_t)
+
+
+    # times.append(sim.time())
+    # radii.append(sim.radii())
+    # positions.append(sim.positions())
+    # velocities.append(sim.velocities())
 
 # Save results as efficient binary NPY-formatted files
-np.save(f"{results_dir}/times_{orifice_size}mm.npy", times)
-np.save(f"{results_dir}/radii_{orifice_size}mm.npy", radii)
-np.save(f"{results_dir}/positions_{orifice_size}mm.npy", positions)
-np.save(f"{results_dir}/velocities_{orifice_size}mm.npy", velocities)
+# np.save(f"{results_dir}/times_{orifice_size}mm.npy", times)
+# np.save(f"{results_dir}/radii_{orifice_size}mm.npy", radii)
+# np.save(f"{results_dir}/positions_{orifice_size}mm.npy", positions)
+# np.save(f"{results_dir}/velocities_{orifice_size}mm.npy", velocities)
+np.save(f"{results_dir}/mass_{orifice_size}mm.npy", mass)
