@@ -11,7 +11,7 @@ import coexist
 
 
 # Generate a new LIGGGHTS simulation from the `granuflow_template.sim` template
-nparticles = 1000  # 130000
+nparticles = 130000
 
 sliding = 0.2
 rolling = 0.01
