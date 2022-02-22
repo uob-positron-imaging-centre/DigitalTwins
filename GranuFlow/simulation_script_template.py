@@ -11,7 +11,7 @@ import coexist
 
 
 # Generate a new LIGGGHTS simulation from the `granuflow_template.sim` template
-nparticles = 130000
+nparticles = 1000  # 130000
 
 sliding = 0.2
 rolling = 0.01
@@ -79,6 +79,9 @@ line = "\n" + "-" * 80 + "\n"
 print(line + "Filling GranuFlow cylinder" + line)
 sim.step_to_time(20.0)
 
+print(line + "Letting Particles Settle" + line)
+sim.step_to_time(1.0)
+
 # Calculate starting mass in the system
 
 radii = sim.radii()
@@ -99,11 +102,9 @@ radii = []
 velocities = []
 mass = []
 
-sim.execute_command("fix MovePlate all move/mesh mesh plate linear -0.025 0. 0.")  # Move GranuFlow plate.
+sim.execute_command("fix MovePlate all move/mesh mesh plate linear -0.05 0. 0.")  # Move GranuFlow plate.
 
-sim.step_to_time(21.0)
-
-checkpoints_open = np.arange(21.0, 22.0, 1/100)
+checkpoints_open = np.arange(20.0, 21.0, 1/100)
 
 for t in checkpoints_open:
     sim.step_to_time(t)
@@ -128,8 +129,10 @@ for t in checkpoints_open:
 
 sim.execute_command("unfix MovePlate")
 
-start_time = 22.0
-end_time = 26.0
+print(line + "Allowing Particles to Flow" + line)
+
+start_time = 21.0
+end_time = 25.0
 
 checkpoints = np.arange(start_time, end_time, 1 / 100)
 
