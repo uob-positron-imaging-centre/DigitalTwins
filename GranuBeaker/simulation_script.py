@@ -73,11 +73,20 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 # Run simulation up to given time (s)
 line = "\n" + "-" * 80 + "\n"
 
-print(line + "Pouring particles and letting them settle" + line)
+print(line + "Pouring particles" + line)
 sim.step_time(2.0)
+
+print(line + "Letting remaining particles fall and settle" + line)
+
+sim.step_time(1.0)
+
+print(line + "Deleting particles outside 50 ml region" + line)
 
 sim.execute_command("delete_atoms region 1")
 
+print(line + "Letting remaining particles settle" + line)
+
+sim.step_time(1.0)
 
 # Extract particle properties as NumPy arrays
 time = sim.time()

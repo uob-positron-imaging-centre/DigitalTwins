@@ -78,7 +78,7 @@ communicate     single vel yes
 units 		    si
 
 # Define simulation domain
-region domain block -0.021 0.021 -0.021 0.021 0 0.2 units box
+region domain block -0.021 0.021 -0.021 0.021 0 0.215 units box
 create_box 3 domain
 
 
@@ -180,7 +180,7 @@ thermo_modify lost ignore norm no
 
 # Define region to delete particles
 
-region 1 block -0.02 0.02 -0.02 0.02 0.03979 INF
+region 1 block -0.021 0.021 -0.021 0.021 0.03979 INF
 
 # VTK dump script
 
