@@ -79,19 +79,14 @@ line = "\n" + "-" * 80 + "\n"
 print(line + "Filling GranuFlow cylinder" + line)
 sim.step_to_time(20.0)
 
-print(line + "Letting Particles Settle" + line)
-sim.step_to_time(1.0)
-
 # Calculate starting mass in the system
 
 radii = sim.radii()
 radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
-start_mass = 0
 
-for r in radii:
-    volume = (4 / 3) * np.pi * (r ** 3)
-    mass_particle = volume * density
-    start_mass = start_mass + mass_particle
+volume = (4 / 3) * np.pi * (radii ** 3)
+mass_array = volume * density
+start_mass = np.sum(mass_array)
 
 
 print(line + "Moving GranuFlow plate and letting particles flow" + line)
@@ -111,13 +106,10 @@ for t in checkpoints_open:
 
     radii = sim.radii()
     radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
-    mass_at_t = 0
 
-    for r in radii:
-
-        volume = (4/3)*np.pi*(r**3)
-        mass_particle = volume*density
-        mass_at_t = mass_at_t + mass_particle
+    volume = (4/3)*np.pi*(radii**3)
+    mass_array = volume*density
+    mass_at_t = np.sum(mass_array)
 
     mass.append(mass_at_t)
 
@@ -141,13 +133,10 @@ for t in checkpoints:
 
     radii = sim.radii()
     radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
-    mass_at_t = 0
 
-    for r in radii:
-
-        volume = (4/3)*np.pi*(r**3)
-        mass_particle = volume*density
-        mass_at_t = mass_at_t + mass_particle
+    volume = (4/3)*np.pi*(radii**3)
+    mass_array = volume*density
+    mass_at_t = np.sum(mass_array)
 
     mass.append(mass_at_t)
 
