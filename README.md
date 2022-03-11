@@ -38,6 +38,7 @@ Copyright (C) 2021 the `DigitalTwins` developers. Until now, this collection was
 - Dominik Werner (University of Birmingham)
 - Andrei Leonard Nicusan (University of Birmingham)
 - Ben Jenkins (University of Birmingham)
+- Jack Sykes (University of Birmingham)
 - Dr. Kit Windows-Yule (University of Birmingham)
 - Prof. Jonathan Seville (University of Birmingham)
 - Aurelien Neveu (GranuTools)
