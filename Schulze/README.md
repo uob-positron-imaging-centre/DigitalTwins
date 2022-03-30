@@ -15,7 +15,8 @@ The linear schulze contains simulation files and geometry files for a small, lin
 
 ## Usage
 
-To run ***your*** material in the schulze, simply edit the simulation file (_.sim_) and insert your material properties at the usual positions. (Prior LIGGGHTS knowledge is _strongly_ recommended ). Predefined names should not be changed. The python script uses those variables. Therefore changing: _N_ to _Particle\_number_ would result in an error.
+To run ***your*** material in the schulze, simply edit the simulation file (_.sim_) and insert your material properties at the usual positions. (Prior LIGGGHTS knowledge is _strongly_ recommended ). Predefined names should not be changed. The python script uses those variables. Therefore changing: "_N_"  to "_Particle\_number_"   would result in an error.
+
 Then run the python script.
 
 This script is running a pre-defined series of commands which imitate the movements and procedures of the schulze shear cell.
@@ -27,3 +28,4 @@ This script is running a pre-defined series of commands which imitate the moveme
 - Output Section
 - Optimize the Functionality: Linear vel change
 - Optimize filling procedure
+- Parallelize simulation
