@@ -44,5 +44,6 @@ Copyright (C) 2021 the `DigitalTwins` developers. Until now, this collection was
 - Aurelien Neveu (GranuTools)
 - Geoffroy Lumay (University of Liege, GranuTools)
 - Filip Francqui (GranuTools)
+- Laura Shaw (Freeman Technology)
 
 Thank you.
