@@ -1,0 +1,169 @@
+################## Simulation  Variables #########################
+variable timestep       equal 1e-5
+variable N              equal 30000		    # number of particles
+variable rate           equal 91000
+
+
+variable youngmodP      equal 5e6
+variable poissP         equal 0.1
+
+variable corPP          equal 0.79		    # Vary
+variable corPW          equal 0.79           # Vary
+variable corPSW         equal 0.79         # Vary
+variable cor            equal 0.5           # Dummy value, Wall-Sidewall
+
+variable fricPP equal 0.001
+variable fricPW equal 0.001
+variable fricPSW        equal 0.01          # Vary
+variable fric           equal 0.5		    # Dummy value, Wall-Sidewall
+
+variable cohPP          equal 0
+variable cohPW          equal 0
+
+variable fricRoll equal 0.001
+
+
+variable dens           equal 2700.0
+
+variable r0 equal 0.00051
+variable r1 equal 0.0005949999999999999
+variable r2 equal 0.00068
+variable r3 equal 0.0007650000000000001
+variable r4 equal 0.00085
+variable r5 equal 0.0009350000000000001
+variable r6 equal 0.00102
+variable r7 equal 0.001105
+variable r8 equal 0.0011899999999999999
+variable r9 equal 0.0012749999999999999
+variable r10 equal 0.00136
+variable r11 equal 0.001445
+
+variable p0 equal 0.008737864077669903
+variable p1 equal 0.011650914173385325
+variable p2 equal 0.04271823223369569
+variable p3 equal 0.10971366833373707
+variable p4 equal 0.178643777854474
+variable p5 equal 0.24659851185563586
+variable p6 equal 0.19611478990840045
+variable p7 equal 0.12426927224124146
+variable p8 equal 0.06213570796185103
+variable p9 equal 0.013592018641462677
+variable p10 equal 0.004854368932038835
+variable p11 equal 0.0009708737864077671
+
+
+########################### Simulation Settings #########################
+# Setting up system
+atom_style 	    granular
+atom_modify	    map array
+boundary	    f f f
+newton 		    off
+communicate     single vel yes
+units 		    si
+
+# Define simulation domain
+region domain block -0.027 0.027 -0.027 0.027 0 0.23 units box
+create_box 3 domain
+
+
+# Create the neighbour list
+neighbor	    0.001760574 bin
+neigh_modify	delay 0
+hard_particles  yes
+
+# Timestep size
+timestep    ${timestep}
+
+# Set gravity as a constant force
+fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
+
+########### Setting the Particle and Wall Properties ######################
+
+fix m1 all property/global youngsModulus peratomtype ${youngmodP}   ${youngmodP}    ${youngmodP}
+fix m2 all property/global poissonsRatio peratomtype ${poissP}      ${poissP}       ${poissP}
+
+fix m3 all property/global coefficientRestitution peratomtypepair 3 &
+${corPP}        ${corPW}        ${corPSW} &
+${corPW}        ${cor}          ${cor} &
+${corPSW}       ${cor}          ${cor}
+
+fix m4 all property/global coefficientFriction peratomtypepair 3 &
+${fricPP}       ${fricPW}       ${fricPSW} &
+${fricPW}       ${fric}         ${fric} &
+${fricPSW}      ${fric}         ${fric}
+
+fix m5 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
+fix  m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
+${cohPP}       ${cohPW}        ${cohPW} &
+${cohPW}       ${cohPW}        ${cohPW} &
+${cohPW}       ${cohPW}        ${cohPW} &
+
+fix  m7 all property/global coefficientRollingFriction peratomtypepair 3 &
+${fricRoll}         ${fricRoll}         ${fricRoll} &
+${fricRoll}         ${fricRoll}         ${fricRoll} &
+${fricRoll}         ${fricRoll}         ${fricRoll} &
+
+
+############################### GEOMETRIES #######################################
+fix cad all mesh/surface/stress file    mesh/box.stl type 2 scale 0.001 wear finnie
+fix blade all mesh/surface/stress file   mesh/blade.stl type 2 scale 0.001 move 0. 0. 0.12 curvature_tolerant yes wear finnie
+fix shear_head all mesh/surface/stress file   mesh/shear_head.stl type 2 scale 0.001 move 0. 0. 0.12 curvature_tolerant yes wear finnie
+fix shear_blades all mesh/surface/stress file   mesh/shear_blade.stl type 2 scale 0.001 move 0. 0. 0.12 curvature_tolerant yes wear finnie
+
+fix inface all mesh/surface file        mesh/inlet.stl              type 3 scale 0.9
+
+
+############################# Contact models ######################################
+pair_style  gran model hertz tangential history  rolling_friction cdt
+pair_coeff * *
+
+# Wall contact models
+fix granwalls all wall/gran model hertz tangential history  rolling_friction cdt mesh n_meshes 3 meshes cad shear_head shear_blades
+
+
+############################# Particle Insertion setup #############################
+fix pts0  all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r0}
+fix pts1  all particletemplate/sphere 20433971 atom_type 1 density constant ${dens} radius constant ${r1}
+fix pts2  all particletemplate/sphere 20433977 atom_type 1 density constant ${dens} radius constant ${r2}
+fix pts3  all particletemplate/sphere 20434457 atom_type 1 density constant ${dens} radius constant ${r3}
+fix pts4  all particletemplate/sphere 20434553 atom_type 1 density constant ${dens} radius constant ${r4}
+fix pts5  all particletemplate/sphere 20435099 atom_type 1 density constant ${dens} radius constant ${r5}
+fix pts6  all particletemplate/sphere 20437121 atom_type 1 density constant ${dens} radius constant ${r6}
+fix pts7  all particletemplate/sphere 20437633 atom_type 1 density constant ${dens} radius constant ${r7}
+fix pts8  all particletemplate/sphere 20437751 atom_type 1 density constant ${dens} radius constant ${r8}
+fix pts9  all particletemplate/sphere 33325361 atom_type 1 density constant ${dens} radius constant ${r9}
+fix pts10 all particletemplate/sphere 33327103 atom_type 1 density constant ${dens} radius constant ${r10}
+fix pts11 all particletemplate/sphere 33327037 atom_type 1 density constant ${dens} radius constant ${r11}
+
+
+fix pdd all particledistribution/discrete/numberbased 49979693 12 pts0 ${p0}  pts1 ${p1}  pts2 ${p2}  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7} pts8 ${p8} pts9 ${p9} pts10 ${p10} pts11 ${p11}
+
+group nve_group region domain
+
+# Particle insertion command; this is used by the Python driver code to change the number of particles
+# fix ins all insert/stream seed 67867967 distributiontemplate pdd nparticles ${N} particlerate ${rate} &
+#         overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.1
+
+
+# Integration scheme
+fix integr all nve/sphere
+
+
+############################# DISPLAY SETTINGS #############################
+thermo        10000
+thermo_style  custom step atoms ke vol time
+thermo_modify lost ignore norm no
+modify_timing on
+
+############################# OUTPUT settings #############################
+# Dump is handled by the Python driver file.
+# dump   dmp all custom/vtk 4000 post/shear_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius density
+# dump   dmpstl all mesh/vtk 4000 post/blade_*.vtk   blade stress wear
+# dump   dmpstl2 all mesh/vtk 40000 post/head_*.vtk   shear_head shear_blades vel stress wear
+# dump   dmpstl3 all mesh/vtk 2000 post/blades_*.vtk    stress wear
+
+
+############################# Run #############################
+# Run is handled by the diver script

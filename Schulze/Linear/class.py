@@ -7,7 +7,7 @@
 
 
 import sys
-
+import logging
 import numpy as np
 from liggghts import liggghts
 
@@ -83,7 +83,15 @@ class Simulation:
 
         self.simulation = liggghts()
         self.simulation.file(self.filename)
+        logging.basicConfig(filename="pylog.log",
+                            filemode='a',
+                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S',
+                            level=logging.DEBUG)
 
+        logging.info("Running Urban Planning")
+
+        self.logger = logging.getLogger('Simulation Class')
         # Save particle and blade data
         self.cmd((
             f"dump dmp all custom/vtk 4000 {self.output}/particles_*.vtk "
@@ -397,7 +405,7 @@ class Simulation:
         cmd = (
             "fix servo all mesh/surface/stress/servo file mesh/plate.stl "
             "type 1 com 0. 0. 0.1 ctrlPV force axis 0. 0. -1. target_val "
-            f"{force} vel_max 0.2 kp 5."
+            f"{force} vel_max 0.1 kp 5."
         )
         self.cmd(cmd)
         self.cmd("unfix granwalls")
@@ -417,13 +425,13 @@ class Simulation:
             self.cmd(cmd2)
 
         # Press cycle:
-        self.run(time - 20000)
+        self.run(time - 30000)
 
         # Now we need a release cycle which is 20000 timesteps long
         self.cmd("fix_modify servo ctrlParam 0.2 0.0 0.0")
         f = force / 10
         self.cmd(f"fix_modify servo target_val {f} ")
-        self.run(10000)
+        self.run(20000)
 
         f2 = force / 100000
         self.cmd(f"fix_modify servo target_val {f2} ")
@@ -469,6 +477,7 @@ class Simulation:
         cmd: str
             command to run in LIGGGHTS
         """
+        self.logger.info(f"Running command: {cmd}")
         self.simulation.command(cmd)
 
     def run(self, timesteps):
@@ -863,7 +872,7 @@ class Simulation:
             self.move_distance("blade", [0.0, 0.0, lin_up], [0.0, 0.0, 0.1])
             self.move_manager("blade", rotation=[0, 1])
 
-    def shear_cell_run(self):
+    def ft4_shear_cell_run(self):
         """ FT4 - Shear cell run.
         A pre-defined shear cell run pushing with 2, 1.75, 1.5, 1.25, 1 kPa.
         This script fills the simulation and saves it as a presheared file to make \
@@ -874,7 +883,7 @@ class Simulation:
             "blade stress wear"
         ))
         self.cmd((
-            f"dump dmpstl all mesh/vtk 4000 {self.output}/shear_head_*.vtk "
+            f"dump dmpstl2 all mesh/vtk 4000 {self.output}/shear_head_*.vtk "
             "shear_head shear_blades stress wear"
         ))
 
@@ -1066,6 +1075,56 @@ class Simulation:
             self.schulze_box_vel(velocity)
             self.run(time_to_rotate)
 
+    def schulze_normal(self):
+        r1 = 0.1  # 10 cm radius
+        r2 = 0.05
+        area = np.pi * (r1**2 - r2**2)
+        velocity = 0.1
+        time_to_rotate = 50000
+        rpm = 5
+        self.fill()
+        self.prepare_extraction("shear_head", save=True)
+        self.prepare_extraction("shear_blades", save=True)
+        self.pid_init(
+            "shear_head",
+            force=[0, 0, 3000 * area],  # convert pressure to force
+            max_velocity=0.1,  # max speed is 0.1 m/s
+            force_k=0.015  # control constant
+        )
+        # couple the blades to the head
+        self.pid_init("shear_blades", coupling="shear_head")
+        self.run(20000)
+        self.move_manager("cad", rotation=[rpm, 1])
+        self.run(10000)
+        self.move_manager("cad", rotation=[rpm, -1])
+        self.run(10000)
+        self.move_manager("cad", rotation=[0, 1])
+        self.save_state("pre_sheared.simsave")
+
+        for normal_pressure in [2020, 1420, 920]:
+            self.load_state("pre_sheared.simsave")
+
+            # after load state we need to reinit the meshes
+            self.prepare_extraction(
+                "shear_head", save=True, extra_name=f"n_stress_{normal_pressure}_kpa")
+            self.prepare_extraction(
+                "shear_blades", save=True, extra_name=f"n_stress_{normal_pressure}_kpa")
+            self.run(1000)
+            self.pid_init(
+                "shear_head",
+                # convert pressure to force
+                force=[0, 0, normal_pressure * area],
+                max_velocity=0.1,  # max speed is 0.1 m/s
+                force_k=0.0015  # control constant
+            )
+            self.pid_init("shear_blades", coupling="shear_head")
+            self.run(1000)
+            # particles should be already in contact
+            # shear now
+            self.move_manager("cad", rotation=[rpm, 1])
+            self.run(time_to_rotate)
+            self.move_manager("cad", rotation=[0, 1])
+
     def __del__(self):
         """ Close the simulation.
         """
@@ -1079,9 +1138,8 @@ if __name__ == "__main__":
     # sim.rheometer_run(rpm_down, rpm_up, lin_down, lin_up)
 
     # Use command-line arguments if supplied, otherwise use defaults
-    script_path = sys.argv[1] if len(sys.argv) >= 2 else "ft4_rheometer.sim"
+    script_path = sys.argv[1] if len(sys.argv) >= 2 else "schulze_lin.sim"
     output_path = sys.argv[2] if len(sys.argv) >= 3 else "sim_outputs"
 
     sim = Simulation(script_path, output_path)
-    #sim.rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
     sim.schulze_linear()

@@ -1138,8 +1138,9 @@ if __name__ == "__main__":
     # sim.rheometer_run(rpm_down, rpm_up, lin_down, lin_up)
 
     # Use command-line arguments if supplied, otherwise use defaults
-    script_path = sys.argv[1] if len(sys.argv) >= 2 else "schulze.sim"
+    script_path = sys.argv[1] if len(sys.argv) >= 2 else "ft4.sim"
     output_path = sys.argv[2] if len(sys.argv) >= 3 else "sim_outputs"
 
     sim = Simulation(script_path, output_path)
-    sim.schulze_normal()
+    #sim.rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
+    sim.ft4_shear_cell_run()
