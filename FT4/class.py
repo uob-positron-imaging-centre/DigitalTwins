@@ -1142,5 +1142,5 @@ if __name__ == "__main__":
     output_path = sys.argv[2] if len(sys.argv) >= 3 else "sim_outputs"
 
     sim = Simulation(script_path, output_path)
-    #sim.rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
+    #sim.ft4_rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
     sim.ft4_shear_cell_run()
