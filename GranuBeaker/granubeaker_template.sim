@@ -184,6 +184,6 @@ region 1 block -0.021 0.021 -0.021 0.021 0.03979 INF
 
 # VTK dump script
 
-dump   dmp all custom/vtk 5000 sim_outputs/sim_0000/particles_0000_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
-dump   dmpstl all mesh/vtk 5000 sim_outputs/sim_0000/beaker_0000_*.vtk   wall stress wear
+#dump   dmp all custom/vtk 5000 sim_outputs/sim_0000/particles_0000_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
+#dump   dmpstl all mesh/vtk 5000 sim_outputs/sim_0000/beaker_0000_*.vtk   wall stress wear
 
