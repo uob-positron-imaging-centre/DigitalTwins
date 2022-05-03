@@ -15,8 +15,7 @@ class cd:
         os.chdir(self.savedPath)
 
 
-## Orifice Sizes
-
+# Orifice Sizes
 orifice_size = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]  # mm
 
 # Directory to save temporary simulation files to
@@ -24,34 +23,38 @@ scriptdir = "simulation_files"
 if not os.path.isdir(scriptdir):
     os.mkdir(scriptdir)
 
-# Directory to save results to
-results_dir = "simulation_files/results"
-if not os.path.isdir(results_dir):
-    os.mkdir(results_dir)
+# Create directory to save results to
+for size in orifice_size:
+    results_dir = f'results/Orifice_{size:02d}mm'
+    if not os.path.isdir(results_dir):
+        os.makedirs(results_dir)
+
+# Directory paths
+
+template_dir = 'Templates'
+simulation_dir = 'simulation_files'
+
+# Create individual simulation files.
 
 for i in range(len(orifice_size)):
 
-    # Create the python script files for different orifice sizes using template.
-
-    shutil.copyfile('simulation_script_template.py', 'simulation_files/simulation_script_{}mm.py'.format(orifice_size[i]))
-
-    with open('simulation_files/simulation_script_{}mm.py'.format(orifice_size[i])) as f:
+    with open(f'{template_dir}/simulation_script_template.py') as f:
         sim_input = f.readlines()
 
     sim_input[22] = f"orifice_size = {orifice_size[i]}\n"
 
-    with open('simulation_files/simulation_script_{}mm.py'.format(orifice_size[i]), "w") as f:
+    with open(f'{scriptdir}/simulation_script_{orifice_size[i]}mm.py', "w") as f:
         f.writelines(sim_input)
 
     # Create the run.sh files for BlueBear.
 
-    with open('run_simulation_template.sh', "r") as f:
+    with open(f'{template_dir}/run_simulation_template.sh', "r") as f:
         lines = f.readlines()
 
     lines[37] = f"python3 simulation_script_{orifice_size[i]}mm.py"
     batch_filename = f"run_simulation_{orifice_size[i]}mm.sh"
 
-    with open('simulation_files/run_simulation_{}mm.sh'.format(orifice_size[i]), "w") as f:
+    with open(f'{simulation_dir}/run_simulation_{orifice_size[i]}mm.sh', "w") as f:
         f.writelines(lines)
 
     with cd("simulation_files"):
