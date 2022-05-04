@@ -9,7 +9,7 @@
 # Simulation constants
 variable timestep       equal 1e-5
 variable N              equal 130000          # Number of particles
-variable NRate          equal ${N}/20        # Particle insertion rate
+variable NRate          equal ${N}/0.1        # Particle insertion rate
 
 
 variable youngmodP      equal 5e6
@@ -19,41 +19,41 @@ variable poissP         equal 0.3
 # Parameter naming:
 #    PP  = Particle-Particle
 #    PW  = Particle-Wall
-#    PSW = Particle-Sidewall
-variable fricPP         equal 0.3197        # Optimise as `sliding`
-variable fricPW         equal 0.3197        # Optimise
-variable fricPSW        equal 0.3197        # Optimise
-variable fric           equal 0.5           # Dummy value, Wall-Sidewall
+#    PSW = Particle-Sidewall (Bottom plate)
+variable fricPP         equal 0.3197        # Particle-Particle sliding friction
+variable fricPW         equal 0.3197        # Particle-Wall slididng friction
+variable fricPSW        equal 0.3197        # Particle-BottomPlate sliding friction
+variable fric           equal 0.3197        # Dummy value
 
-variable fricRollPP     equal 0.00248       # Optimise as `rolling`
-variable fricRollPW     equal 0.00248       # Optimise
-variable fricRollPSW    equal 0.00248       # Optimise
-variable fricRoll       equal 0.00248       # Dummy value, Wall-Sidewall
+variable fricRollPP     equal 0.00248       # Particle-Particle rolling friction
+variable fricRollPW     equal 0.00248       # Particle-Wall rolling friction
+variable fricRollPSW    equal 0.00248       # Particle-BottomPlate rolling friction
+variable fricRoll       equal 0.00248       # Dummy value
 
-variable corPP          equal 0.3           # Optimise
-variable corPW          equal 0.3           # Optimise
-variable corPSW         equal 0.3           # Optimise
-variable cor            equal 0.3           # Dummy value, Wall-Sidewall
+variable corPP          equal 0.3           # Particle-Particle restitution
+variable corPW          equal 0.3           # Particle-Wall restitution
+variable corPSW         equal 0.3           # Particle-BottomPlate restitution
+variable cor            equal 0.3           # Dummy value
 
-variable cohPP          equal 0             # Optimise as `cohesion`
-variable cohPW          equal 0             # Optimise
-variable cohPSW         equal 0             # Optimise
-variable coh            equal 0             # Dummy value, Wall-Sidewall
+variable cohPP          equal 0             # Particle-Particle cohesion
+variable cohPW          equal 0             # Particle-Wall cohesion
+variable cohPSW         equal 0             # Particle-BottomPlate cohesion
+variable coh            equal 0             # Dummy value
 
 variable dens           equal 1580.0
 
 
 # Particle Size Distribution
-variable r0 equal 1050e-6
-variable r1 equal 1100e-6
-variable r2 equal 1150e-6
-variable r3 equal 1200e-6
-variable r4 equal 1250e-6
-variable r5 equal 1300e-6
-variable r6 equal 1350e-6
-variable r7 equal 1400e-6
-variable r8 equal 1450e-6
-variable r9 equal 1500e-6
+variable r0 equal 1050e-6/2
+variable r1 equal 1100e-6/2
+variable r2 equal 1150e-6/2
+variable r3 equal 1200e-6/2
+variable r4 equal 1250e-6/2
+variable r5 equal 1300e-6/2
+variable r6 equal 1350e-6/2
+variable r7 equal 1400e-6/2
+variable r8 equal 1450e-6/2
+variable r9 equal 1500e-6/2
 
 
 variable p0 equal 0.0064659
@@ -86,7 +86,7 @@ create_box 3 domain
 neighbor	    0.001445 bin
 neigh_modify	delay 0
 hard_particles  yes
-
+soft_particles  yes
 
 # Particle / wall contact properties
 fix m1 all property/global youngsModulus peratomtype &
@@ -133,7 +133,7 @@ fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
 
 # STL geometry
 fix	plate	all mesh/surface file mesh/Plate2mm.stl	type 2  scale 0.001
-fix	tube	all mesh/surface file mesh/Tube.stl	type 2  scale 0.001
+fix	tube	all mesh/surface file mesh/Tube.stl	type 3  scale 0.001
 fix	ins_mesh all mesh/surface/planar file mesh/ins_mesh.stl type 1 scale 0.001
 
 
@@ -164,7 +164,7 @@ fix ins all insert/stream   seed 32452867               &
                             particlerate ${NRate}       &
                             overlapcheck yes            &
                             all_in no                   &
-                            vel constant 0.0 0.0 -0.1   &
+                            vel constant 0.0 0.0 -0.4   &
                             insertion_face ins_mesh extrude_length 0.1
 
 
