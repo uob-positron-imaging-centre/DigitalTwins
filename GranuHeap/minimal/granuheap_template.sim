@@ -179,13 +179,8 @@ thermo        1000
 thermo_style  custom step atoms ke vol time
 thermo_modify lost ignore norm no
 
-run 1
-unfix ins
-
-
-
-
-
+# run 1
+# unfix ins
 
 # # Run the first 10,000 timesteps to make sure all particles are inserted
 # dump   dmp all custom/vtk 5000 sim_outputs/sim_0000/heap_0000_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
