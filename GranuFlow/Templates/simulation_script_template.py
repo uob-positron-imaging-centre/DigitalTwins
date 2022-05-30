@@ -112,10 +112,10 @@ checkpoints_open = np.arange(3.0, 4.0, 1/100)  # Open plate over 1 second (Savin
 for t in checkpoints_open:
     sim.step_to_time(t)
 
-    radii = sim.radii()
-    radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
+    radii_t = sim.radii()
+    radii_t = radii_t[~np.isnan(radii)]  # Remove any nan values from array.
 
-    volume = (4/3)*np.pi*(radii**3)  # Calculate the current volume of all the particles in the system
+    volume = (4/3)*np.pi*(radii_t**3)  # Calculate the current volume of all the particles in the system
     mass_array = volume*density  # Calculate mass of all partiles currently in the system
     mass_at_t = np.sum(mass_array)  # Sum all array elements to got one value of mass at time t.
     mass_at_t = start_mass - mass_at_t  # Find mass that has left the system.
@@ -140,15 +140,15 @@ checkpoints = np.arange(start_time, end_time, 1 / 100)  # Allowing particles to 
 for t in checkpoints:
     sim.step_to_time(t)
 
-    radii = sim.radii()
-    radii = radii[~np.isnan(radii)]  # Remove any nan values from array.
+    radii_t = sim.radii()
+    radii_t = radii_t[~np.isnan(radii)]  # Remove any nan values from array.
 
-    volume = (4/3)*np.pi*(radii**3)
-    mass_array = volume*density
-    mass_at_t = np.sum(mass_array)
-    mass_at_t = start_mass - mass_at_t
+    volume = (4/3)*np.pi*(radii_t**3)  # Calculate the current volume of all the particles in the system
+    mass_array = volume*density  # Calculate mass of all partiles currently in the system
+    mass_at_t = np.sum(mass_array)  # Sum all array elements to got one value of mass at time t.
+    mass_at_t = start_mass - mass_at_t  # Find mass that has left the system.
 
-    mass.append(mass_at_t)
+    mass.append(mass_at_t)  # Append current mass as time t to mass array
 
     # times.append(sim.time())
     # radii.append(sim.radii())
