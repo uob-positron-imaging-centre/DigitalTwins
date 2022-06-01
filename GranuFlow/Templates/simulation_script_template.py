@@ -113,19 +113,19 @@ for t in checkpoints_open:
     sim.step_to_time(t)
 
     radii_t = sim.radii()
-    radii_t = radii_t[~np.isnan(radii)]  # Remove any nan values from array.
+    radii_t = radii_t[~np.isnan(radii_t)]  # Remove any nan values from array.
 
     volume = (4/3)*np.pi*(radii_t**3)  # Calculate the current volume of all the particles in the system
     mass_array = volume*density  # Calculate mass of all partiles currently in the system
     mass_at_t = np.sum(mass_array)  # Sum all array elements to got one value of mass at time t.
     mass_at_t = start_mass - mass_at_t  # Find mass that has left the system.
 
-    mass.append(mass_at_t)  # Append current mass as time t to mass array
-
-    # times.append(sim.time())
-    # radii.append(sim.radii())
-    # positions.append(sim.positions())
-    # velocities.append(sim.velocities())
+    # Append outputs to arrays
+    mass.append(mass_at_t)
+    times.append(sim.time())
+    radii.append(sim.radii())
+    positions.append(sim.positions())
+    velocities.append(sim.velocities())
 
 sim.execute_command("unfix MovePlate")
 
@@ -141,23 +141,23 @@ for t in checkpoints:
     sim.step_to_time(t)
 
     radii_t = sim.radii()
-    radii_t = radii_t[~np.isnan(radii)]  # Remove any nan values from array.
+    radii_t = radii_t[~np.isnan(radii_t)]  # Remove any nan values from array.
 
     volume = (4/3)*np.pi*(radii_t**3)  # Calculate the current volume of all the particles in the system
     mass_array = volume*density  # Calculate mass of all partiles currently in the system
     mass_at_t = np.sum(mass_array)  # Sum all array elements to got one value of mass at time t.
     mass_at_t = start_mass - mass_at_t  # Find mass that has left the system.
 
-    mass.append(mass_at_t)  # Append current mass as time t to mass array
-
-    # times.append(sim.time())
-    # radii.append(sim.radii())
-    # positions.append(sim.positions())
-    # velocities.append(sim.velocities())
+    # Append outputs to arrays
+    mass.append(mass_at_t)
+    times.append(sim.time())
+    radii.append(sim.radii())
+    positions.append(sim.positions())
+    velocities.append(sim.velocities())
 
 # Save results as efficient binary NPY-formatted files
-# np.save(f"{results_dir}/times_{orifice_size}mm.npy", times)
-# np.save(f"{results_dir}/radii_{orifice_size}mm.npy", radii)
-# np.save(f"{results_dir}/positions_{orifice_size}mm.npy", positions)
-# np.save(f"{results_dir}/velocities_{orifice_size}mm.npy", velocities)
+np.save(f"{results_dir}/times_{orifice_size}mm.npy", times)
+np.save(f"{results_dir}/radii_{orifice_size}mm.npy", radii)
+np.save(f"{results_dir}/positions_{orifice_size}mm.npy", positions)
+np.save(f"{results_dir}/velocities_{orifice_size}mm.npy", velocities)
 np.save(f"{results_dir}/mass_{orifice_size}mm.npy", mass)
