@@ -74,19 +74,15 @@ def generate_diablo(diablo_particle_radius, gen_diablo_height=15/1000, no_layers
 
 # Generate a new LIGGGHTS simulation from the `granupack_template.sim` template
 # User dependent values
-nparticles = 30000
+nparticles = 15000
 drop_distance = 1/1000  # m
 no_of_taps = 150
-gravity = 9.81
 rest_time = 0.2  # Time for particles to settle between drops
 t_insert = 1  # Initial time to let particles settle during/after insertion
 t_diablo_insert = 0.2  # Time to allow diablo to be inserted into the simulation
-diablo_mass = 0.01255  # kg
-diablo_sphere_radius = 0.5/1000  # mm / 1000 to convert to m
 save_bulk_density = True  # Save numpy arrays of bulk density
 save_all_particle_data = True  # Save particle data. Positions, radii.
 use_multisphere_diablo = True  # Use multisphere particles to model the diablo on top of the powder in the GranuPack cell.
-diablo_height = 15/1000  # mm / 1000 to convert to m
 
 # Particle Properties
 sliding = 0.3197
@@ -95,8 +91,14 @@ restitution = 0.3
 cohesion = 0
 density = 1580
 
-# Geometry Constants
+# Diablo Properties
 tube_internal_radius = 0.026/2  # m
+diablo_height = 15/1000  # mm / 1000 to convert to m
+diablo_sphere_radius = 0.5/1000  # mm / 1000 to convert to m
+diablo_mass = 0.01255  # kg
+
+# Simulation Properties
+gravity = 9.81
 
 # Directory to save results to
 simulation_dir = os.path.normpath(os.getcwd())
@@ -138,6 +140,7 @@ sim_script[34] = f"variable cohPW equal {cohesion}\n"
 sim_script[35] = f"variable cohPWD equal {0}\n"
 
 sim_script[37] = f"variable dens equal {density}\n"
+sim_script[39] = f"variable sim_depth equal {(drop_distance*no_of_taps)+0.01}\n"
 
 # Save the simulation template with the modified parameters
 sim_path = f"{working_dir}/granupack.sim"

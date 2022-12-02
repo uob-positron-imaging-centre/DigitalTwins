@@ -4,7 +4,7 @@ import seaborn as sns
 
 
 # User defined variables
-data_folder_path = 'data'  # Path to folder containing data
+data_folder_path = 'data5'  # Path to folder containing data
 file_name = 'bulk_density.npy'  # Name of file containing bulk density data
 
 # Import data

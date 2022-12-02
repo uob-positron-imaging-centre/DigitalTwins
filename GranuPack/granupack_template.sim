@@ -8,7 +8,7 @@
 
 # Simulation constants
 variable timestep       equal 5e-6
-variable N              equal 30000           # Number of particles
+variable N              equal 15000           # Number of particles
 variable NRate          equal ${N}/0.1        # Particle insertion rate
 
 
@@ -37,6 +37,7 @@ variable cohPWD         equal 0            # Particle/Wall-Diablo cohesion
 
 variable dens           equal 1580.0
 variable dummy          equal 0.1
+variable sim_depth      equal 0.1
 
 # Particle Size Distribution
 variable r0 equal 1050e-6/2
@@ -73,7 +74,7 @@ communicate     single vel yes
 units 		    si
 
 # Define simulation domain
-region domain block -0.016 0.016 -0.026 0.026 -0.16 0.21 units box
+region domain block -0.016 0.016 -0.026 0.026 -${sim_depth} 0.21 units box
 create_box 3 domain
 
 
