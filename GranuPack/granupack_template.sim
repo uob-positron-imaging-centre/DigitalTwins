@@ -1,0 +1,185 @@
+# LIGGGHTS script simulating a GranuFlow
+#
+# The parameters given below correspond to a sample of microcrystalline
+# cellulose (MCC) particles whose properties were calibrated using ACCES; the
+# particle size distribution follows a simple log-normal PDF.
+
+
+
+# Simulation constants
+variable timestep       equal 5e-6
+variable N              equal 15000           # Number of particles
+variable NRate          equal ${N}/0.1        # Particle insertion rate
+
+
+variable youngmodP      equal 5e7
+variable poissP         equal 0.3
+
+
+# Parameter naming:
+#    PP  = Particle-Particle
+#    PW  = Particle-Wall
+variable fricPP         equal 0.3197        # Particle-Particle sliding friction
+variable fricPW         equal 0.3197        # Particle-Wall sliding friction
+variable fricPWD        equal 0.001         # Particle/Wall-DiabloMultisphere sliding friction
+
+variable fricRollPP     equal 0.00248       # Particle-Particle rolling friction
+variable fricRollPW     equal 0.00248       # Particle-Wall rolling friction
+variable fricRollPWD    equal 0.001         # Particle/Wall-DiabloMultisphere rolling friction
+
+variable corPP          equal 0.3           # Particle-Particle restitution
+variable corPW          equal 0.3           # Particle-Wall restitution
+variable corPWD         equal 0.3           # Particle/Wall-Diablo restitution
+
+variable cohPP          equal 0             # Particle-Particle cohesion
+variable cohPW          equal 0             # Particle-Wall cohesion
+variable cohPWD         equal 0            # Particle/Wall-Diablo cohesion
+
+variable dens           equal 1580.0
+variable dummy          equal 0.1
+variable sim_depth      equal 0.1
+
+# Particle Size Distribution
+variable r0 equal 1050e-6/2
+variable r1 equal 1100e-6/2
+variable r2 equal 1150e-6/2
+variable r3 equal 1200e-6/2
+variable r4 equal 1250e-6/2
+variable r5 equal 1300e-6/2
+variable r6 equal 1350e-6/2
+variable r7 equal 1400e-6/2
+variable r8 equal 1450e-6/2
+variable r9 equal 1500e-6/2
+
+
+variable p0 equal 0.0064659
+variable p1 equal 0.07387693
+variable p2 equal 0.26249571
+variable p3 equal 0.25249525
+variable p4 equal 0.17012964
+variable p5 equal 0.10530736
+variable p6 equal 0.06885834
+variable p7 equal 0.03662696
+variable p8 equal 0.01861549
+variable p9 equal 0.00512842
+
+
+# Set up GranuFlow
+atom_style 	    granular
+atom_modify	    map array
+
+boundary	    f f f
+newton 		    off
+communicate     single vel yes
+units 		    si
+
+# Define simulation domain
+region domain block -0.016 0.016 -0.026 0.026 -${sim_depth} 0.21 units box
+create_box 3 domain
+
+
+# Create the neighbour list
+neighbor	    0.00008 bin
+neigh_modify	delay 0
+hard_particles  yes
+
+# Particle / wall contact properties
+# Particle / wall contact properties
+fix m1 all property/global youngsModulus peratomtype &
+    ${youngmodP}    ${youngmodP}    ${youngmodP}
+
+fix m2 all property/global poissonsRatio peratomtype &
+    ${poissP}       ${poissP}       ${poissP}
+
+fix m3 all property/global coefficientFriction peratomtypepair 3 &
+    ${fricPP}       ${fricPW}       ${fricPWD}      &
+    ${fricPW}       ${dummy}        ${fricPWD}      &
+    ${fricPWD}      ${fricPWD}      ${dummy}
+
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3 &
+    ${fricRollPP}   ${fricRollPW}   ${fricRollPWD}  &
+    ${fricRollPW}   ${dummy}        ${fricRollPWD}  &
+    ${fricRollPWD}  ${fricRollPWD}  ${dummy}
+
+fix m5 all property/global coefficientRestitution peratomtypepair 3 &
+    ${corPP}        ${corPW}        ${corPWD}       &
+    ${corPW}        ${dummy}        ${corPWD}       &
+    ${corPWD}       ${corPWD}       ${dummy}
+
+fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
+    ${cohPP}        ${cohPW}        ${cohPWD}       &
+    ${cohPW}        ${dummy}        ${cohPWD}       &
+    ${cohPWD}       ${cohPWD}       ${dummy}
+
+fix m7 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
+# Contact pair styles
+pair_style gran model hertz tangential history cohesion sjkr rolling_friction cdt
+pair_coeff * *
+
+
+# Timestep size
+timestep ${timestep}
+
+
+# Set gravity as a constant force
+fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
+
+
+# STL geometry
+fix	ins_mesh all mesh/surface/planar file mesh/ins_mesh.stl type 2 scale 1
+fix	tube     all mesh/surface file mesh/tube.stl	type 2  scale 1
+
+
+# Wall contact models
+fix granwalls all wall/gran model hertz tangential history rolling_friction cdt mesh n_meshes 1 meshes tube
+
+# Initialise particle groups
+group multispheres initialize
+group spheres initialize
+
+fix intSpheres spheres nve/sphere
+fix intMulti multispheres multisphere
+
+# Particle Size Distribution
+fix pts0 spheres particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r0}
+fix pts1 spheres particletemplate/sphere 20433971 atom_type 1 density constant ${dens} radius constant ${r1}
+fix pts2 spheres particletemplate/sphere 20433977 atom_type 1 density constant ${dens} radius constant ${r2}
+fix pts3 spheres particletemplate/sphere 20434457 atom_type 1 density constant ${dens} radius constant ${r3}
+fix pts4 spheres particletemplate/sphere 20434553 atom_type 1 density constant ${dens} radius constant ${r4}
+fix pts5 spheres particletemplate/sphere 20435099 atom_type 1 density constant ${dens} radius constant ${r5}
+fix pts6 spheres particletemplate/sphere 20437121 atom_type 1 density constant ${dens} radius constant ${r6}
+fix pts7 spheres particletemplate/sphere 20437457 atom_type 1 density constant ${dens} radius constant ${r7}
+fix pts8 spheres particletemplate/sphere 20437687 atom_type 1 density constant ${dens} radius constant ${r8}
+fix pts9 spheres particletemplate/sphere 20437811 atom_type 1 density constant ${dens} radius constant ${r9}
+
+
+fix pdd spheres particledistribution/discrete/numberbased 49979693 10 pts0 ${p0}  pts1 ${p1}  pts2 ${p2}  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+
+
+# Particle Insertion
+fix ins spheres insert/stream   seed 32452867               &
+                            distributiontemplate pdd    &
+                            nparticles ${N}             &
+                            particlerate ${NRate}       &
+                            overlapcheck yes            &
+                            all_in no                   &
+                            vel constant 0.0 0.0 -0.4   &
+                            insertion_face ins_mesh extrude_length 0.1
+
+
+
+
+# Output settings, include total thermal energy
+# modify_timing on
+
+# thermo        1000
+# thermo_style  custom step atoms ke vol time
+# thermo_modify lost ignore norm no
+
+# Dump visualisation data
+
+dump  dmpparticle spheres custom/vtk 10000 sim_outputs/sim_0000/particles_*.vtk id type x y z vx vy vz fx fy fz radius mass
+dump  dmpdiablo multispheres custom/vtk 10000 sim_outputs/sim_0000/diablo_*.vtk id type x y z vx vy vz fx fy fz radius mass
+dump  dmptube all mesh/vtk 10000 sim_outputs/sim_0000/tube_*.vtk tube stress wear
