@@ -1,6 +1,6 @@
 # GranuPack Digital Twin
 
-[//]: # (![GranuPack-DigitaTwin-Render]&#40;https://i.imgur.com/TQ2BCBo.mp4&#41;)
+https://user-images.githubusercontent.com/80293628/205920498-97fac64c-a775-4d85-b307-41a3349c5586.mp4
 
 ## Description
 A discrete element method (DEM) Digital Twin of the Granutools' GranuPack powder characterisation tool built using PICI-LIGGGHTS.
