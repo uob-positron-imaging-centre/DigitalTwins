@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # File   : simulation_script.py
 # License: GNU v3.0
-
+# Author : Ben Jenkins
 
 import os
 import math
@@ -10,25 +10,37 @@ import numpy as np
 import coexist
 
 
-def calc_bulk_density(calc_positions, calc_radii, calc_diablo_height, diablo_particle_radius):
+#region Bulk Density Calculation Function
+def calc_bulk_density(calc_positions, calc_radii):
 
-    positions = calc_positions[~np.isnan(calc_positions).any(axis=1)]  # Remove nans
-    radii = calc_radii[~np.isnan(calc_radii)]  # Remove nans
-    zpositions_radii_add = np.add(positions[:, 2], radii)
-    zpositions_radii_subtract = np.subtract(positions[:, 2], radii)
+    # Remove nan particles from arrays
+    positions_bd = calc_positions[~np.isnan(calc_positions).any(axis=1)]  # Remove nans
+    radii_bd = calc_radii[~np.isnan(calc_radii)]  # Remove nans
+
+    # Add and subtract radii from particle heights
+    zpositions_radii_add = np.add(positions_bd[:, 2], radii_bd)
+    zpositions_radii_subtract = np.subtract(positions_bd[:, 2], radii_bd)
+
+    # Find index of 10 highest particles+radius and value of lowest particles-radius
     highest_particles_indicies = np.argpartition(zpositions_radii_add, -10)[-10:]
-    bottom = np.nanmin(zpositions_radii_subtract)
+
+    # Find mean value of the highest particles
     highest_particle_positions = zpositions_radii_add[highest_particles_indicies]
     top = np.mean(highest_particle_positions)
-    if use_multisphere_diablo is True:
-        top = top - (calc_diablo_height + diablo_particle_radius)
+
+    # Find height of the lowest particle
+    bottom = np.nanmin(zpositions_radii_subtract)
+
+    # Calculate bulk density
     length = top - bottom
-    total_powder_volume = length*math.pi*tube_internal_radius**2
+    total_powder_volume = length*math.pi*tube_internal_radius**2  # Volume taken up by powder
     calculated_bulk_density = start_mass/total_powder_volume
 
     return calculated_bulk_density
+#endregion
 
 
+#region Generate Diablo Function
 def generate_diablo(diablo_particle_radius, gen_diablo_height=15/1000, no_layers=1):
     radii = np.linspace(0, 12.4/1000, 20 + 1)
     all_x = []
@@ -70,6 +82,26 @@ def generate_diablo(diablo_particle_radius, gen_diablo_height=15/1000, no_layers
     number_of_spheres = len(lines)
 
     return number_of_spheres
+#endregion
+
+
+#region Define particle type to extract
+def extract_type(sim):
+    # Get particle velocities
+    nlocal = sim.simulation.extract_atom("nlocal", 0)[0]
+    id_lig = sim.simulation.extract_atom("id", 0)
+
+
+    ids = np.array([id_lig[i] for i in range(nlocal)])
+    type = np.full(ids.max(), np.nan)
+
+    type_lig = sim.simulation.extract_atom("type", 0)
+
+    for i in range(len(ids)):
+        type[ids[i] - 1] = type_lig[i]
+
+    return type
+#endregion
 
 
 # Generate a new LIGGGHTS simulation from the `granupack_template.sim` template
@@ -175,15 +207,19 @@ if use_multisphere_diablo is True:
     sim.step_to_time(t_diablo_insert+t_insert)
 
 # Calculate initial mass of particles
-initial_radii = sim.radii()
-initial_radii = initial_radii[~np.isnan(initial_radii)]  # Remove any nan values from array.
-volume = (4 / 3) * np.pi * (initial_radii ** 3)
-mass_array = volume * density
-start_mass = np.sum(mass_array)  # Mass after all particles inserted
 if use_multisphere_diablo is True:
-    diablo_volume = ((4 / 3) * math.pi * (diablo_sphere_radius ** 3)) * no_spheres
-    apparent_diablo_mass = diablo_volume * density
-    start_mass = start_mass - apparent_diablo_mass  # Subtract diablo mass from total mass
+    types = extract_type(sim)
+    initial_radii = sim.radii()[:len(types)]
+    initial_radii = initial_radii[~np.isnan(initial_radii)]  # Remove any nan values from array.
+    volume = (4 / 3) * np.pi * (initial_radii ** 3)
+    mass_array = volume * density
+    start_mass = np.sum(mass_array)  # Mass after all particles inserted
+else:
+    initial_radii = sim.radii()
+    initial_radii = initial_radii[~np.isnan(initial_radii)]  # Remove any nan values from array.
+    volume = (4 / 3) * np.pi * (initial_radii ** 3)
+    mass_array = volume * density
+    start_mass = np.sum(mass_array)  # Mass after all particles inserted
 
 # Setup empty arrays to append to
 times_array = []
@@ -194,16 +230,15 @@ mass = []
 bulk_density = []
 
 # Save initial output data
+types = extract_type(sim)
 if save_all_particle_data is True:
     times_array.append(sim.time())
-    positions_array.append(sim.positions())
-    radii_array.append(sim.radii())
-    velocities_array.append(sim.velocities())
+    positions_array.append(sim.positions()[:len(types)])
+    radii_array.append(sim.radii()[:len(types)])
+    velocities_array.append(sim.velocities()[:len(types)])
 if save_bulk_density is True:
-    bulk_density.append(calc_bulk_density(calc_positions=sim.positions(),
-                                              calc_radii=sim.radii(),
-                                              calc_diablo_height=diablo_height,
-                                              diablo_particle_radius=diablo_sphere_radius))
+    bulk_density.append(calc_bulk_density(calc_positions=sim.positions()[:len(types)],
+                                              calc_radii=sim.radii()[:len(types)]))
 
 # Set the initial time variables
 if use_multisphere_diablo is True:
@@ -242,19 +277,18 @@ for d in range(no_of_taps):
     # Save output data
     if save_bulk_density is True:
         # Calculate bulk density
-        bulk_density_at_d = calc_bulk_density(calc_positions=sim.positions(),
-                                              calc_radii=sim.radii(),
-                                              calc_diablo_height=diablo_height,
-                                              diablo_particle_radius=diablo_sphere_radius)
+        bulk_density_at_d = calc_bulk_density(calc_positions=sim.positions()[:len(types)],
+                                              calc_radii=sim.radii()[:len(types)])
         # Append bulk density
         bulk_density.append(bulk_density_at_d)
 
     # Append Particle Data
     if save_all_particle_data is True:
+        types = extract_type(sim)
         times_array.append(sim.time())
-        radii_array.append(sim.radii())
-        positions_array.append(sim.positions())
-        velocities_array.append(sim.velocities())
+        radii_array.append(sim.radii()[:len(types)])
+        positions_array.append(sim.positions()[:len(types)])
+        velocities_array.append(sim.velocities()[:len(types)])
 
     # Save results as efficient binary NPY-formatted files
     if save_bulk_density is True:
