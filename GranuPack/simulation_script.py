@@ -10,9 +10,23 @@ import numpy as np
 import coexist
 
 
-#region Bulk Density Calculation Function
-def calc_bulk_density(calc_positions, calc_radii):
+# Function to calculate the bulk density of the powder in GranuPack
+def calc_bulk_density(calc_positions, calc_radii, powder_mass, cylinder_radius):
+    """
+    Calculate the bulk density of the powder bed using the particle positions and radii as well as total particle mass
+    and container dimensions.
+    Parameters
+    ----------
+    calc_positions (np.array): Array of particle positions
+    calc_radii (np.array): Array of particle radii
+    powder_mass (float): Total mass of the powder in the cylinder
+    cylinder_radius (float): Radius of the cylinder
 
+    Returns
+    -------
+    calculated_bulk_density (float): Calculated bulk density of the powder in the GranuPack at specific tap number
+
+    """
     # Remove nan particles from arrays
     positions_bd = calc_positions[~np.isnan(calc_positions).any(axis=1)]  # Remove nans
     radii_bd = calc_radii[~np.isnan(calc_radii)]  # Remove nans
@@ -33,15 +47,27 @@ def calc_bulk_density(calc_positions, calc_radii):
 
     # Calculate bulk density
     length = top - bottom
-    total_powder_volume = length*math.pi*tube_internal_radius**2  # Volume taken up by powder
-    calculated_bulk_density = start_mass/total_powder_volume
+    total_powder_volume = length*math.pi*cylinder_radius**2  # Volume taken up by powder
+    calculated_bulk_density = powder_mass/total_powder_volume
 
     return calculated_bulk_density
-#endregion
 
 
-#region Generate Diablo Function
+# Function to generate diablo.txt file that generates a diablo multisphere
 def generate_diablo(diablo_particle_radius, gen_diablo_height=15/1000, no_layers=1):
+    """
+    Generate a diablo.txt file for use in the GranuPack LIGGGHTS simulation.
+    Parameters
+    ----------
+    diablo_particle_radius (float): Radius of the diablo particles
+    gen_diablo_height (float): Height of the diablo
+    no_layers (int): Number of layers of diablo particles to generate
+
+    Returns
+    -------
+    number_of_spheres (int): Number of spheres in the diablo multisphere
+
+    """
     radii = np.linspace(0, 12.4/1000, 20 + 1)
     all_x = []
     all_y = []
@@ -82,10 +108,9 @@ def generate_diablo(diablo_particle_radius, gen_diablo_height=15/1000, no_layers
     number_of_spheres = len(lines)
 
     return number_of_spheres
-#endregion
 
 
-#region Define particle type to extract
+# Function to extract particle IDs from LIGGGHTS
 def extract_type(sim):
     # Get particle velocities
     nlocal = sim.simulation.extract_atom("nlocal", 0)[0]
@@ -93,15 +118,14 @@ def extract_type(sim):
 
 
     ids = np.array([id_lig[i] for i in range(nlocal)])
-    type = np.full(ids.max(), np.nan)
+    particle_type = np.full(ids.max(), np.nan)
 
     type_lig = sim.simulation.extract_atom("type", 0)
 
     for i in range(len(ids)):
-        type[ids[i] - 1] = type_lig[i]
+        particle_type[ids[i] - 1] = type_lig[i]
 
-    return type
-#endregion
+    return particle_type
 
 
 # Generate a new LIGGGHTS simulation from the `granupack_template.sim` template
@@ -113,7 +137,7 @@ rest_time = 0.2  # Time for particles to settle between drops
 t_insert = 1  # Initial time to let particles settle during/after insertion
 t_diablo_insert = 0.2  # Time to allow diablo to be inserted into the simulation
 save_bulk_density = True  # Save numpy arrays of bulk density
-save_all_particle_data = True  # Save particle data. Positions, radii.
+save_all_particle_data = False  # Save particle data. Positions, radii.
 use_multisphere_diablo = True  # Use multisphere particles to model the diablo on top of the powder in the GranuPack cell.
 
 # Particle Properties
@@ -131,6 +155,7 @@ diablo_mass = 0.01255  # kg
 
 # Simulation Properties
 gravity = 9.81
+number_of_fall_steps = 20
 
 # Directory to save results to
 simulation_dir = os.path.normpath(os.getcwd())
@@ -206,10 +231,13 @@ if use_multisphere_diablo is True:
     sim.execute_command(f"fix ins1 multispheres insert/pack seed 32452843 distributiontemplate pmd vel constant 0. 0. -0.01. insert_every once overlapcheck yes region diablo particles_in_region 1")
     sim.step_to_time(t_diablo_insert+t_insert)
 
+# ID all the particles that are not diablo particles (i.e. the powder particles)
+type_ids = extract_type(sim)
+powder_particles_indices = np.where(type_ids == 1)[0]
+
 # Calculate initial mass of particles
 if use_multisphere_diablo is True:
-    types = extract_type(sim)
-    initial_radii = sim.radii()[:len(types)]
+    initial_radii = sim.radii()[powder_particles_indices]
     initial_radii = initial_radii[~np.isnan(initial_radii)]  # Remove any nan values from array.
     volume = (4 / 3) * np.pi * (initial_radii ** 3)
     mass_array = volume * density
@@ -230,22 +258,23 @@ mass = []
 bulk_density = []
 
 # Save initial output data
-types = extract_type(sim)
 if save_all_particle_data is True:
     times_array.append(sim.time())
-    positions_array.append(sim.positions()[:len(types)])
-    radii_array.append(sim.radii()[:len(types)])
-    velocities_array.append(sim.velocities()[:len(types)])
+    positions_array.append(sim.positions()[powder_particles_indices])
+    radii_array.append(sim.radii()[powder_particles_indices])
+    velocities_array.append(sim.velocities()[powder_particles_indices])
 if save_bulk_density is True:
-    bulk_density.append(calc_bulk_density(calc_positions=sim.positions()[:len(types)],
-                                              calc_radii=sim.radii()[:len(types)]))
+    bulk_density.append(calc_bulk_density(calc_positions=sim.positions()[powder_particles_indices],
+                                              calc_radii=sim.radii()[powder_particles_indices],
+                                              powder_mass=start_mass,
+                                              cylinder_radius=tube_internal_radius))
 
 # Set the initial time variables
 if use_multisphere_diablo is True:
     tlast = t_insert + t_diablo_insert
 else:
     tlast = t_insert
-discretize = 20
+discretize = number_of_fall_steps
 tdrop = 0
 
 # Run the simulation bulk of simulation
@@ -277,18 +306,19 @@ for d in range(no_of_taps):
     # Save output data
     if save_bulk_density is True:
         # Calculate bulk density
-        bulk_density_at_d = calc_bulk_density(calc_positions=sim.positions()[:len(types)],
-                                              calc_radii=sim.radii()[:len(types)])
+        bulk_density_at_d = calc_bulk_density(calc_positions=sim.positions()[powder_particles_indices],
+                                              calc_radii=sim.radii()[powder_particles_indices],
+                                              powder_mass=start_mass,
+                                              cylinder_radius=tube_internal_radius)
         # Append bulk density
         bulk_density.append(bulk_density_at_d)
 
     # Append Particle Data
     if save_all_particle_data is True:
-        types = extract_type(sim)
         times_array.append(sim.time())
-        radii_array.append(sim.radii()[:len(types)])
-        positions_array.append(sim.positions()[:len(types)])
-        velocities_array.append(sim.velocities()[:len(types)])
+        radii_array.append(sim.radii()[powder_particles_indices])
+        positions_array.append(sim.positions()[powder_particles_indices])
+        velocities_array.append(sim.velocities()[powder_particles_indices])
 
     # Save results as efficient binary NPY-formatted files
     if save_bulk_density is True:
