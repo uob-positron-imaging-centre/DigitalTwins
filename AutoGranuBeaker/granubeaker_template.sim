@@ -1,0 +1,143 @@
+# LIGGGHTS script simulating a Beaker
+#
+# The parameters given below correspond to a sample of microcrystalline
+# cellulose (MCC) particles whose properties were calibrated using ACCES; the
+# particle size distribution follows a simple log-normal PDF.
+
+
+
+# Simulation constants
+variable timestep       equal 5e-6
+variable N              equal 29954         # Number of particles
+variable NRate          equal ${N}/0.1      # Particle insertion rate
+
+
+variable youngmodP      equal 5e6
+variable poissP         equal 0.3
+
+
+# Parameter naming:
+#    PP  = Particle-Particle
+#    PW  = Particle-Wall (cylindrical hull of the Beaker)
+#    PSW = Particle-Sidewall (circular sides of the Beaker)
+variable fricPP         equal 0.3197        # Optimise as `sliding`
+variable fricPW         equal 0.3197        # Optimise
+variable fricPSW        equal 0.3197        # Optimise
+variable fric           equal 0.5           # Dummy value, Wall-Sidewall
+
+variable fricRollPP     equal 0.00248       # Optimise as `rolling`
+variable fricRollPW     equal 0.00248       # Optimise
+variable fricRollPSW    equal 0.00248       # Optimise
+variable fricRoll       equal 0.00248       # Dummy value, Wall-Sidewall
+
+variable corPP          equal 0.3           # Optimise
+variable corPW          equal 0.3           # Optimise
+variable corPSW         equal 0.3           # Optimise
+variable cor            equal 0.3           # Dummy value, Wall-Sidewall
+
+variable cohPP          equal 0             # Optimise as `cohesion`
+variable cohPW          equal 0             # Optimise
+variable cohPSW         equal 0             # Optimise
+variable coh            equal 0             # Dummy value, Wall-Sidewall
+
+variable dens           equal 1580.0
+
+
+
+
+# Set up Beaker
+atom_style 	    granular
+atom_modify	    map array
+
+boundary	    f f f
+newton 		    off
+communicate     single vel yes
+units 		    si
+
+# Define simulation domain
+region domain block -0.021 0.021 -0.021 0.021 0 0.215 units box
+create_box 3 domain
+
+
+# Create the neighbour list
+neighbor	    0.001445 bin
+neigh_modify	delay 0
+hard_particles  yes
+
+
+# Particle / wall contact properties
+fix m1 all property/global youngsModulus peratomtype &
+    ${youngmodP}    ${youngmodP}    ${youngmodP}
+
+fix m2 all property/global poissonsRatio peratomtype &
+    ${poissP}       ${poissP}       ${poissP}
+
+fix m3 all property/global coefficientFriction peratomtypepair 3 &
+    ${fricPP}       ${fricPW}       ${fricPSW}      &
+    ${fricPW}       ${fric}         ${fric}         &
+    ${fricPSW}      ${fric}         ${fric}
+
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3 &
+    ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}  &
+    ${fricRollPW}   ${fricRoll}     ${fricRoll}     &
+    ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+
+fix m5 all property/global coefficientRestitution peratomtypepair 3 &
+    ${corPP}        ${corPW}        ${corPSW}       &
+    ${corPW}        ${cor}          ${cor}          &
+    ${corPSW}       ${cor}          ${cor}
+
+fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
+    ${cohPP}        ${cohPW}        ${cohPSW}       &
+    ${cohPW}        ${coh}          ${coh}          &
+    ${cohPSW}       ${coh}          ${coh}
+
+fix m7 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
+# Contact pair styles
+pair_style gran model hertz tangential history cohesion sjkr rolling_friction cdt
+pair_coeff * *
+
+
+# Timestep size
+timestep ${timestep}
+
+
+# Set gravity as a constant force
+fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
+
+
+# STL geometry
+fix wall all mesh/surface/stress file   mesh/granubeaker.stl       type 2
+fix inface all mesh/surface file        mesh/granubeaker_init.stl      type 3
+
+
+# Wall contact models
+fix granwalls all wall/gran model hertz tangential history rolling_friction cdt mesh n_meshes 1 meshes wall
+
+### Add particle size distribution from generated psd file
+include psd.sim
+
+
+
+# Integration scheme
+fix integr all nve/sphere
+
+
+# Output settings, include total thermal energy
+modify_timing on
+
+thermo        1000
+thermo_style  custom step atoms ke vol time
+thermo_modify lost ignore norm no
+
+# Define region to delete particles
+
+
+
+# VTK dump script
+
+#dump   dmp all custom/vtk 5000 sim_outputs/particles_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
+#dump   dmpstl all mesh/vtk 5000 sim_outputs/beaker_*.vtk wall stress wear
+
