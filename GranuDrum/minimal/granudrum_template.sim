@@ -44,16 +44,16 @@ variable dens           equal 1580.0
 
 
 # Particle Size Distribution
-variable r0 equal 1050e-6
-variable r1 equal 1100e-6
-variable r2 equal 1150e-6
-variable r3 equal 1200e-6
-variable r4 equal 1250e-6
-variable r5 equal 1300e-6
-variable r6 equal 1350e-6
-variable r7 equal 1400e-6
-variable r8 equal 1450e-6
-variable r9 equal 1500e-6
+variable r0 equal 1050e-6/2
+variable r1 equal 1100e-6/2
+variable r2 equal 1150e-6/2
+variable r3 equal 1200e-6/2
+variable r4 equal 1250e-6/2
+variable r5 equal 1300e-6/2
+variable r6 equal 1350e-6/2
+variable r7 equal 1400e-6/2
+variable r8 equal 1450e-6/2
+variable r9 equal 1500e-6/2
 
 
 variable p0 equal 0.0064659
