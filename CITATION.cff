@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Jenkins"
+  given-names: "Ben"
+- family-names: "Werner"
+  given-names: "Dominik"
+- family-names: "Nicusan"
+  given-names: "Leonard"
+- family-names: "Sykes"
+  given-names: "Jack"
+- family-names: "Windows-Yule"
+  given-names: "Kit"
+- family-names: "Seville"
+  given-names: "Jonathan"
+- family-names: "Neveu"
+  given-names: "Aurelien"
+- family-names: "Lumay"
+  given-names: "Geoffroy"
+- family-names: "Francqui"
+  given-names: "Filip"
+- family-names: "Shaw"
+  given-names: "Laura"
+title: "PICI-DigitalTwins"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2023-04-14
+url: "https://github.com/uob-positron-imaging-centre/DigitalTwins"
