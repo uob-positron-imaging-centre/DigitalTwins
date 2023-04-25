@@ -77,7 +77,7 @@ class Simulation:
 
     '''
 
-    def __init__(self, filename, output="."):
+    def __init__(self, filename, output=".", dump=False):
         self.filename = filename
         self.output = output
 
@@ -93,11 +93,12 @@ class Simulation:
 
         self.logger = logging.getLogger('Simulation Class')
         # Save particle and blade data
-        self.cmd((
-            f"dump dmp all custom/vtk 4000 {self.output}/particles_*.vtk "
-            "id type type x y z ix iy iz vx vy vz fx fy fz "
-            "omegax omegay omegaz radius"
-        ))
+        if dump is True:
+            self.cmd((
+                f"dump dmp all custom/vtk 4000 {self.output}/particles_*.vtk "
+                "id type type x y z ix iy iz vx vy vz fx fy fz "
+                "omegax omegay omegaz radius"
+            ))
 
         # Define the names of the stl's in the liggghts file
         # in order to move them or get the force
