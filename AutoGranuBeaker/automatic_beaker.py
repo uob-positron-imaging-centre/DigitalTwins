@@ -12,6 +12,7 @@
 # the -o the psd file will be overwritten. Default is to raise an error if the file already exists.
 # the -i or --insert_multiplier flag, the the insertion rate will be multiplied by the provided value. Default is 1.
 # the -v or --vel flag, the velocity of the particles will be inserted. Default is 0.05 m/s.
+# the --insertion_length flag, to add to the insertion length. Default is 0.1 m. This defines the region particles will initially included in the simulation.
 # TODO: Figure out how to use parameters? Maybe a parameter file?
 
 # make the beaker x times bigger than the biggest particle
@@ -226,13 +227,20 @@ sim_script[38] = f"variable cohPW equal {cohesion}\n"
 sim_script[39] = f"variable cohPSW equal {cohesion}\n"
 sim_script[42] = f"variable dens equal {density}\n"
 
+if "--insertion_length" in sys.argv:
+    insertion_length = float(sys.argv[sys.argv.index(
+        "--insertion_length")+1])
+else:
+    insertion_length = 0.1
+
+
 # define domain of the system
 xmin = -diameter / 2 * 1.1
 xmax = diameter / 2 * 1.1
 ymin = -diameter / 2 * 1.1
 ymax = diameter / 2 * 1.1
 zmin = -0.01 * 1.1
-zmax = height * 1.1
+zmax = height * 1.1 + insertion_length
 sim_script[57] = f"region domain block {xmin} {xmax} {ymin} {ymax} {zmin} {zmax} units box\n"
 
 # set particle skin distance
@@ -255,7 +263,7 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 
 
 # calculate necessery parameters for insertion
-extrude_len = 5 * np.max(particle_diameters)
+extrude_len = 5 * np.max(particle_diameters) + insertion_length
 insertion_volume = np.pi * (diameter/2)**2 * extrude_len
 if "-v" in sys.argv or "--velocity" in sys.argv:
     insertion_velocity = float(sys.argv[sys.argv.index("-v")+1])
