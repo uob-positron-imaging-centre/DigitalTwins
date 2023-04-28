@@ -138,6 +138,6 @@ thermo_modify lost ignore norm no
 
 # VTK dump script
 
-#dump   dmp all custom/vtk 5000 sim_outputs/particles_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
-#dump   dmpstl all mesh/vtk 5000 sim_outputs/beaker_*.vtk wall stress wear
+dump   dmp all custom/vtk 5000 sim_outputs/particles_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
+dump   dmpstl all mesh/vtk 5000 sim_outputs/beaker_*.vtk wall stress wear
 

@@ -33,7 +33,7 @@ if len(sys.argv) > 1:
 if "--unit" in sys.argv or "-u" in sys.argv:
     try:
         unit = sys.argv[sys.argv.index("--unit") + 1]
-        if unit not in ["mm", "cm", "m"]:
+        if unit not in ["µm", "mm", "cm", "m"]:
             raise ValueError("Please provide a valid unit")
     except IndexError:
         raise ValueError("Please provide a valid unit")
@@ -104,16 +104,35 @@ class GranubeakerMesh:
         gmsh.finalize()
 
 
+# read csv data but check if there is a header
 csv_data = np.genfromtxt(csv_file, delimiter=",")
-particle_diameters = csv_data[:, 0] * convert_factor * 2
-particle_fractions = csv_data[:, 1]
+
+
+print(csv_data.shape)
+if csv_data.shape == (2,):
+    # only one column
+    particle_diameters = np.asarray([csv_data[0] * convert_factor])
+    particle_fractions = np.asarray([csv_data[1]])
+else:
+    # remove header
+    csv_data = csv_data[np.isfinite(csv_data[:, 0])]
+    particle_diameters = csv_data[:, 0] * convert_factor
+    particle_fractions = csv_data[:, 1]
+
 particle_fractions /= np.sum(particle_fractions)
+weighted_particle_volumes = (4/3) * np.pi * \
+    (particle_diameters/2)**3 * particle_fractions
+average_particle_volume = np.median(weighted_particle_volumes)
+average_particle_diameter = np.average(
+    particle_diameters, weights=particle_fractions)
+
 unit = "m"
 print("\nBiggest particle diameter: " +
       str(max(particle_diameters)) + " " + unit)
 if gen_mesh:
     print("Generating mesh...")
-    diameter = BEAKER_FACTOR * max(particle_diameters)
+    # max(particle_diameters)
+    diameter = BEAKER_FACTOR * average_particle_diameter
     height = diameter
     print("Diameter of Beaker: " + str(diameter) + " " + unit)
     volume_beaker = np.pi * (diameter / 2)**2 * height
@@ -232,9 +251,7 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 # we now fill the system with particles until half of the volume is filled
 
 # estimate the number of particles based on the volume of the beaker and the psd
-weighted_particle_volumes = (4/3) * np.pi * \
-    (particle_diameters/2)**3 * particle_fractions
-average_particle_volume = np.median(weighted_particle_volumes)
+
 
 # calculate necessery parameters for insertion
 extrude_len = 5 * np.max(particle_diameters)
@@ -246,15 +263,17 @@ if "-n" in sys.argv or "--nparticles" in sys.argv:
 else:
     # 0.75 is max packing fraction and 0.6 bc we only want to fill 60% of the vessel
     nparticles = int(volume_beaker / average_particle_volume) * 0.75 * 0.6
-
+    input(
+        f"nparticles = {nparticles} Volume = {volume_beaker} Average Volume = {average_particle_volume} Press enter to continue")
+vol_biggest_particle = 4/3 * np.pi * (np.max(particle_diameters)/2)**3
 insertion_max_particles = int(
-    insertion_volume / average_particle_volume) * 0.75 / 200  # why 200 ? IDK
+    insertion_volume / vol_biggest_particle) * 0.75   # why 200 ? IDK
 insertion_rate = insertion_max_particles / insertion_time
 
 # insert at least 1 particle per second
 if insertion_rate < 1:
     insertion_rate = 1
-
+print(insertion_rate, insertion_max_particles, insertion_time, nparticles)
 # Particle Insertion
 insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 -0.05 insertion_face inface extrude_length {extrude_len} \n"
 insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles) - 1)
@@ -305,10 +324,15 @@ while number_par_deleted > particle_tolerance:
         line + f"Deleting particles outside 50 ml region. Round: {i+1}" + line)
     sim.execute_command("delete_atoms region 1")
     print(line + "Letting remaining particles settle" + line)
-    sim.step_time(1.0)
 
     radii_after_deletion = sim.radii()
     number_par_deleted = len(radii_before_deletion) - len(radii_after_deletion)
+
+    if number_par_deleted < particle_tolerance:
+        # if no particles are deleted anymore, we can
+        # break the loop and continue with the simulation
+        break
+    sim.step_time(1.0)
 
     radii_before_deletion = []
     radii_after_deletion = []
@@ -332,8 +356,9 @@ volume_filled = np.pi * (diameter/2)**2 * height * 0.5
 particle_volume = np.sum((4/3) * np.pi * radii**3)
 
 print("Particle Volume fraction: ", particle_volume/volume_filled)
-print("Particle Number density: ", len(radii)/volume_filled+"n/m^3")
-print("Particle Bulk density: ", particle_volume * density/volume_filled+"kg/m^3")
+print("Particle Number density: ", len(radii)/volume_filled, " \#/m^3")
+print("Particle Bulk density: ", particle_volume *
+      density/volume_filled, " kg/m^3")
 
 # Save results as efficient binary NPY-formatted files
 np.save(f"{results_dir}/radii.npy", radii)
