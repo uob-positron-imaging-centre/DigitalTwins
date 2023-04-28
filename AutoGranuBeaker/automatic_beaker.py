@@ -26,6 +26,21 @@ np.random.seed(0)
 BEAKER_FACTOR = 20
 
 
+def reduce_kin_energy(sim, threshold=1e-14):
+    sim.step_time(0.1)
+    radii = sim.radii()
+    vel = sim.velocities()
+    kin_energy = 0.5 * np.sum(4/3 * np.pi * radii **
+                              3 * np.linalg.norm(vel, axis=1)**2)
+    print("Kinetic Energy = ", kin_energy)
+    while kin_energy > threshold:
+        sim.step_time(0.1)
+        radii = sim.radii()
+        vel = sim.velocities()
+        kin_energy = 0.5 * np.sum(4/3 * np.pi * radii**3 * vel**2)
+        print("Kinetic Energy = ", kin_energy)
+
+
 # Parse the command line arguments and check if the provided csv file is valid
 if len(sys.argv) > 1:
     csv_file = sys.argv[1]
@@ -231,7 +246,7 @@ if "--insertion_length" in sys.argv:
     insertion_length = float(sys.argv[sys.argv.index(
         "--insertion_length")+1])
 else:
-    insertion_length = 0.1
+    insertion_length = 0.0
 
 
 # define domain of the system
@@ -301,19 +316,37 @@ insertion_command = f"fix ins all insert/stream seed 32452867 distributiontempla
 insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles))
 time_for_insertion = insertion_time * insertion_steps * 1.1
 
-sim.execute_command(insertion_command)
+# sim.execute_command(insertion_command)
 
 # Run simulation up to given time (s)
 line = "\n" + "-" * 80 + "\n"
 
+# 0.75 is the position of the insertion face
+total_travel_path = extrude_len + height*0.75
+total_travel_time = total_travel_path / insertion_velocity
+nparticles = 5000
 # Inserting Particles
 print(line + "Pouring particles" + line)
-print(f"Inserting {nparticles} particles in {time_for_insertion} s")
-sim.step_time(time_for_insertion)
+print(f"Pouring {nparticles} particles with a rate of {insertion_rate} particles per second every {total_travel_time} seconds")
+try:
+    pos = sim.positions()
+    max_z = np.nanmax(pos[:, 2])
+except ValueError:
+    max_z = 0
+while max_z < 0.6*height:
+    insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 {-insertion_velocity} insertion_face inface extrude_length {extrude_len} \n"
+    sim.execute_command(insertion_command)
+    sim.step_time(total_travel_time*0.95)
+    sim.execute_command("unfix ins")
+    sim.step_time(total_travel_time*0.05)
+    pos = sim.positions()
+    max_z = np.nanmax(pos[:, 2])
+    print("Max z = ", max_z, "Filled = ", max_z/height)
+
 
 # Allowing particles to settle
-print(line + "Letting remaining particles fall and settle" + line)
-sim.step_time(0.5)
+print(line + "Letting remaining particles settle" + line)
+reduce_kin_energy(sim)
 
 
 # First deletion step
@@ -333,7 +366,7 @@ if number_par_deleted < particle_tolerance:
     raise ValueError(
         "WARNING: No particles deleted in delition step. Can not calculate packing fraction. Increase number of particles or check parameters within this file.")
 print(line + "Letting remaining particles uncompact" + line)
-sim.step_time(1.0)
+reduce_kin_energy(sim)
 
 # Delete particles until none are deleted anymore
 i = 1
@@ -354,7 +387,7 @@ while number_par_deleted > particle_tolerance:
         # if no particles are deleted anymore, we can
         # break the loop and continue with the simulation
         break
-    sim.step_time(1.0)
+    reduce_kin_energy(sim)
 
     radii_before_deletion = []
     radii_after_deletion = []
