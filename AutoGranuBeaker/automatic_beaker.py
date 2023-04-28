@@ -10,7 +10,8 @@
 # the --unit or -u flag, the unit of the csv file can be specified. Valid units are mm, cm and m. Default is m.
 # the --show flag, the generated beaker will be shown in a 3D viewer.
 # the -o the psd file will be overwritten. Default is to raise an error if the file already exists.
-
+# the -i or --insert_multiplier flag, the the insertion rate will be multiplied by the provided value. Default is 1.
+# the -v or --vel flag, the velocity of the particles will be inserted. Default is 0.05 m/s.
 # TODO: Figure out how to use parameters? Maybe a parameter file?
 
 # make the beaker x times bigger than the biggest particle
@@ -256,18 +257,31 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 # calculate necessery parameters for insertion
 extrude_len = 5 * np.max(particle_diameters)
 insertion_volume = np.pi * (diameter/2)**2 * extrude_len
-insertion_velocity = 0.05
+if "-v" in sys.argv or "--velocity" in sys.argv:
+    insertion_velocity = float(sys.argv[sys.argv.index("-v")+1])
+    if insertion_velocity < 0:
+        insertion_velocity = -insertion_velocity
+else:
+    insertion_velocity = 0.05
 insertion_time = extrude_len/insertion_velocity
 if "-n" in sys.argv or "--nparticles" in sys.argv:
     nparticles = int(sys.argv[sys.argv.index("-n")+1])
 else:
     # 0.75 is max packing fraction and 0.6 bc we only want to fill 60% of the vessel
     nparticles = int(volume_beaker / average_particle_volume) * 0.75 * 0.6
-    input(
-        f"nparticles = {nparticles} Volume = {volume_beaker} Average Volume = {average_particle_volume} Press enter to continue")
+    # input(
+    #    f"nparticles = {nparticles} Volume = {volume_beaker} Average Volume = {average_particle_volume} Press enter to continue")
 vol_biggest_particle = 4/3 * np.pi * (np.max(particle_diameters)/2)**3
+# this value is very iffy. we can not know how many particles the insertion will actually insert
+# thats the reason why we have the beaker in the first place.
+# we can only estimate the maximum number of particles that can be inserted
+# check if insert_multiplier is in argv
+if "-i" in sys.argv or "--insert_multiplier" in sys.argv:
+    insert_multiplier = float(sys.argv[sys.argv.index("-i")+1])
+else:
+    insert_multiplier = 1.0
 insertion_max_particles = int(
-    insertion_volume / vol_biggest_particle) * 0.75   # why 200 ? IDK
+    insertion_volume / vol_biggest_particle) * 0.35 * insert_multiplier
 insertion_rate = insertion_max_particles / insertion_time
 
 # insert at least 1 particle per second
@@ -275,8 +289,8 @@ if insertion_rate < 1:
     insertion_rate = 1
 print(insertion_rate, insertion_max_particles, insertion_time, nparticles)
 # Particle Insertion
-insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 -0.05 insertion_face inface extrude_length {extrude_len} \n"
-insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles) - 1)
+insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 {-insertion_velocity} insertion_face inface extrude_length {extrude_len} \n"
+insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles))
 time_for_insertion = insertion_time * insertion_steps * 1.1
 
 sim.execute_command(insertion_command)
