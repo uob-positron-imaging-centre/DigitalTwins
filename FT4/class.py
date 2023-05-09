@@ -749,6 +749,12 @@ class FT4Simulation:
             f"dump dmpstl all mesh/vtk 4000 {self.output}/blade_*.vtk "
             "blade stress wear"
         ))
+        self.cmd((
+            'unfix granwalls'
+        ))
+        self.cmd((
+            'fix granwalls all wall/gran model hertz tangential history  rolling_friction cdt mesh n_meshes 2 meshes cad blade'
+        ))
 
         self.fill()
         self.run(20000)
@@ -907,5 +913,5 @@ if __name__ == "__main__":
     output_path = sys.argv[2] if len(sys.argv) >= 3 else "sim_outputs"
 
     sim = FT4Simulation(script_path, output_path)
-    #sim.ft4_rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
+    # sim.ft4_rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
     sim.ft4_shear_cell_run()
