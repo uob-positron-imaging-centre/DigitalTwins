@@ -4,10 +4,9 @@ This repository for the Schulze shear cell contains two different versions:
 - ***Normal*** Schulze
 - ***Linear*** Schulze
 
-***Note:*** The Schulze and the FT4 simulations share the same python file.
 ## Normal Schulze
 Containing geometry and simulation files for a full-size ShearCell simulation.
-This Simulation is with a total fill volume of ***Insert size here*** liter a very intensive simulation. Therefore a smaller, more efficient simulation is provided
+This Simulation is with a total fill volume of 1 liter a very intensive simulation. Therefore a smaller, more efficient simulation is provided
 
 ## Linear Schulze
 The linear schulze contains simulation files and geometry files for a small, linearized version of the Schulze ShearCell. This simulation provides realistic results with only 1/10th of normal schulzes simulation volume and is therefore more efficient.

@@ -10,7 +10,9 @@
 # the --unit or -u flag, the unit of the csv file can be specified. Valid units are mm, cm and m. Default is m.
 # the --show flag, the generated beaker will be shown in a 3D viewer.
 # the -o the psd file will be overwritten. Default is to raise an error if the file already exists.
-
+# the -i or --insert_multiplier flag, the the insertion rate will be multiplied by the provided value. Default is 1.
+# the -v or --vel flag, the velocity of the particles will be inserted. Default is 0.05 m/s.
+# the --insertion_length flag, to add to the insertion length. Default is 0.1 m. This defines the region particles will initially included in the simulation.
 # TODO: Figure out how to use parameters? Maybe a parameter file?
 
 # make the beaker x times bigger than the biggest particle
@@ -24,6 +26,21 @@ np.random.seed(0)
 BEAKER_FACTOR = 20
 
 
+def reduce_kin_energy(sim, threshold=1e-14):
+    sim.step_time(0.1)
+    radii = sim.radii()
+    vel = sim.velocities()
+    kin_energy = 0.5 * np.sum(4/3 * np.pi * radii **
+                              3 * np.linalg.norm(vel, axis=1)**2)
+    print("Kinetic Energy = ", kin_energy)
+    while kin_energy > threshold:
+        sim.step_time(0.1)
+        radii = sim.radii()
+        vel = sim.velocities()
+        kin_energy = 0.5 * np.sum(4/3 * np.pi * radii**3 * vel**2)
+        print("Kinetic Energy = ", kin_energy)
+
+
 # Parse the command line arguments and check if the provided csv file is valid
 if len(sys.argv) > 1:
     csv_file = sys.argv[1]
@@ -33,7 +50,7 @@ if len(sys.argv) > 1:
 if "--unit" in sys.argv or "-u" in sys.argv:
     try:
         unit = sys.argv[sys.argv.index("--unit") + 1]
-        if unit not in ["mm", "cm", "m"]:
+        if unit not in ["µm", "mm", "cm", "m"]:
             raise ValueError("Please provide a valid unit")
     except IndexError:
         raise ValueError("Please provide a valid unit")
@@ -104,16 +121,35 @@ class GranubeakerMesh:
         gmsh.finalize()
 
 
+# read csv data but check if there is a header
 csv_data = np.genfromtxt(csv_file, delimiter=",")
-particle_diameters = csv_data[:, 0] * convert_factor * 2
-particle_fractions = csv_data[:, 1]
+
+
+print(csv_data.shape)
+if csv_data.shape == (2,):
+    # only one column
+    particle_diameters = np.asarray([csv_data[0] * convert_factor])
+    particle_fractions = np.asarray([csv_data[1]])
+else:
+    # remove header
+    csv_data = csv_data[np.isfinite(csv_data[:, 0])]
+    particle_diameters = csv_data[:, 0] * convert_factor
+    particle_fractions = csv_data[:, 1]
+
 particle_fractions /= np.sum(particle_fractions)
+weighted_particle_volumes = (4/3) * np.pi * \
+    (particle_diameters/2)**3 * particle_fractions
+average_particle_volume = np.median(weighted_particle_volumes)
+average_particle_diameter = np.average(
+    particle_diameters, weights=particle_fractions)
+
 unit = "m"
 print("\nBiggest particle diameter: " +
       str(max(particle_diameters)) + " " + unit)
 if gen_mesh:
     print("Generating mesh...")
-    diameter = BEAKER_FACTOR * max(particle_diameters)
+    # max(particle_diameters)
+    diameter = BEAKER_FACTOR * average_particle_diameter
     height = diameter
     print("Diameter of Beaker: " + str(diameter) + " " + unit)
     volume_beaker = np.pi * (diameter / 2)**2 * height
@@ -206,13 +242,20 @@ sim_script[38] = f"variable cohPW equal {cohesion}\n"
 sim_script[39] = f"variable cohPSW equal {cohesion}\n"
 sim_script[42] = f"variable dens equal {density}\n"
 
+if "--insertion_length" in sys.argv:
+    insertion_length = float(sys.argv[sys.argv.index(
+        "--insertion_length")+1])
+else:
+    insertion_length = 0.0
+
+
 # define domain of the system
 xmin = -diameter / 2 * 1.1
 xmax = diameter / 2 * 1.1
 ymin = -diameter / 2 * 1.1
 ymax = diameter / 2 * 1.1
 zmin = -0.01 * 1.1
-zmax = height * 1.1
+zmax = height * 1.1 + insertion_length
 sim_script[57] = f"region domain block {xmin} {xmax} {ymin} {ymax} {zmin} {zmax} units box\n"
 
 # set particle skin distance
@@ -232,47 +275,78 @@ sim = coexist.LiggghtsSimulation(sim_path, verbose=True)
 # we now fill the system with particles until half of the volume is filled
 
 # estimate the number of particles based on the volume of the beaker and the psd
-weighted_particle_volumes = (4/3) * np.pi * \
-    (particle_diameters/2)**3 * particle_fractions
-average_particle_volume = np.median(weighted_particle_volumes)
+
 
 # calculate necessery parameters for insertion
-extrude_len = 5 * np.max(particle_diameters)
+extrude_len = 5 * np.max(particle_diameters) + insertion_length
 insertion_volume = np.pi * (diameter/2)**2 * extrude_len
-insertion_velocity = 0.05
+if "-v" in sys.argv or "--velocity" in sys.argv:
+    insertion_velocity = float(sys.argv[sys.argv.index("-v")+1])
+    if insertion_velocity < 0:
+        insertion_velocity = -insertion_velocity
+else:
+    insertion_velocity = 0.05
 insertion_time = extrude_len/insertion_velocity
 if "-n" in sys.argv or "--nparticles" in sys.argv:
     nparticles = int(sys.argv[sys.argv.index("-n")+1])
 else:
     # 0.75 is max packing fraction and 0.6 bc we only want to fill 60% of the vessel
     nparticles = int(volume_beaker / average_particle_volume) * 0.75 * 0.6
-
+    # input(
+    #    f"nparticles = {nparticles} Volume = {volume_beaker} Average Volume = {average_particle_volume} Press enter to continue")
+vol_biggest_particle = 4/3 * np.pi * (np.max(particle_diameters)/2)**3
+# this value is very iffy. we can not know how many particles the insertion will actually insert
+# thats the reason why we have the beaker in the first place.
+# we can only estimate the maximum number of particles that can be inserted
+# check if insert_multiplier is in argv
+if "-i" in sys.argv or "--insert_multiplier" in sys.argv:
+    insert_multiplier = float(sys.argv[sys.argv.index("-i")+1])
+else:
+    insert_multiplier = 1.0
 insertion_max_particles = int(
-    insertion_volume / average_particle_volume) * 0.75 / 200  # why 200 ? IDK
+    insertion_volume / vol_biggest_particle) * 0.35 * insert_multiplier
 insertion_rate = insertion_max_particles / insertion_time
 
 # insert at least 1 particle per second
 if insertion_rate < 1:
     insertion_rate = 1
-
+print(insertion_rate, insertion_max_particles, insertion_time, nparticles)
 # Particle Insertion
-insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 -0.05 insertion_face inface extrude_length {extrude_len} \n"
-insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles) - 1)
+insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 {-insertion_velocity} insertion_face inface extrude_length {extrude_len} \n"
+insertion_steps = max(1, np.ceil(nparticles / insertion_max_particles))
 time_for_insertion = insertion_time * insertion_steps * 1.1
 
-sim.execute_command(insertion_command)
+# sim.execute_command(insertion_command)
 
 # Run simulation up to given time (s)
 line = "\n" + "-" * 80 + "\n"
 
+# 0.75 is the position of the insertion face
+total_travel_path = extrude_len + height*0.75
+total_travel_time = total_travel_path / insertion_velocity
+nparticles = 5000
 # Inserting Particles
 print(line + "Pouring particles" + line)
-print(f"Inserting {nparticles} particles in {time_for_insertion} s")
-sim.step_time(time_for_insertion)
+print(f"Pouring {nparticles} particles with a rate of {insertion_rate} particles per second every {total_travel_time} seconds")
+try:
+    pos = sim.positions()
+    max_z = np.nanmax(pos[:, 2])
+except ValueError:
+    max_z = 0
+while max_z < 0.6*height:
+    insertion_command = f"fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles {nparticles} particlerate {insertion_rate} overlapcheck yes all_in no vel constant 0.0 0.0 {-insertion_velocity} insertion_face inface extrude_length {extrude_len} \n"
+    sim.execute_command(insertion_command)
+    sim.step_time(total_travel_time*0.95)
+    sim.execute_command("unfix ins")
+    sim.step_time(total_travel_time*0.05)
+    pos = sim.positions()
+    max_z = np.nanmax(pos[:, 2])
+    print("Max z = ", max_z, "Filled = ", max_z/height)
+
 
 # Allowing particles to settle
-print(line + "Letting remaining particles fall and settle" + line)
-sim.step_time(0.5)
+print(line + "Letting remaining particles settle" + line)
+reduce_kin_energy(sim)
 
 
 # First deletion step
@@ -292,7 +366,7 @@ if number_par_deleted < particle_tolerance:
     raise ValueError(
         "WARNING: No particles deleted in delition step. Can not calculate packing fraction. Increase number of particles or check parameters within this file.")
 print(line + "Letting remaining particles uncompact" + line)
-sim.step_time(1.0)
+reduce_kin_energy(sim)
 
 # Delete particles until none are deleted anymore
 i = 1
@@ -305,10 +379,15 @@ while number_par_deleted > particle_tolerance:
         line + f"Deleting particles outside 50 ml region. Round: {i+1}" + line)
     sim.execute_command("delete_atoms region 1")
     print(line + "Letting remaining particles settle" + line)
-    sim.step_time(1.0)
 
     radii_after_deletion = sim.radii()
     number_par_deleted = len(radii_before_deletion) - len(radii_after_deletion)
+
+    if number_par_deleted < particle_tolerance:
+        # if no particles are deleted anymore, we can
+        # break the loop and continue with the simulation
+        break
+    reduce_kin_energy(sim)
 
     radii_before_deletion = []
     radii_after_deletion = []
@@ -332,8 +411,9 @@ volume_filled = np.pi * (diameter/2)**2 * height * 0.5
 particle_volume = np.sum((4/3) * np.pi * radii**3)
 
 print("Particle Volume fraction: ", particle_volume/volume_filled)
-print("Particle Number density: ", len(radii)/volume_filled+"n/m^3")
-print("Particle Bulk density: ", particle_volume * density/volume_filled+"kg/m^3")
+print("Particle Number density: ", len(radii)/volume_filled, " \#/m^3")
+print("Particle Bulk density: ", particle_volume *
+      density/volume_filled, " kg/m^3")
 
 # Save results as efficient binary NPY-formatted files
 np.save(f"{results_dir}/radii.npy", radii)

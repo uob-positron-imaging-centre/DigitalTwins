@@ -12,7 +12,7 @@ import numpy as np
 from liggghts import liggghts
 
 
-class Simulation:
+class FT4Simulation:
     '''Class managing a LIGGGHTS simulation.
     This is made for a diverse set of simulations of common Powder Characterization Tools
 
@@ -719,102 +719,6 @@ class Simulation:
 
         self.cmd(cmd)
 
-    def test(self):
-        """ Simple Test function
-        """
-        self.fill()
-        self.prepare_extraction("blade", save=True)
-        self.run(1000)
-        print(self.get_force("blade"))
-        print(self.get_torque("blade"))
-        # self.set_rotation("blade", 60)
-        self.run(100)
-
-        # Move 10 cm with 10 cm / s
-        self.move_distance("blade", [0, 0, -0.1], [0, 0., -0.1])
-        self.run(10000)
-        self.set_rotation("blade", 60)
-        self.run(100000)
-        self.set_rotation("blade", 0)
-        self.run(10000)
-        self.set_rotation("blade", 60, -1)
-        self.run(100000)
-        self.set_rotation("blade", 60)
-        self.run(10000)
-
-        # Move 10 cm with 10 cm / s
-        self.move_distance("blade", [0, 0, 0.1], [0, 0., 0.1])
-
-    def test2(self):
-        """ Simple Test function
-        """
-        self.fill()
-        self.prepare_extraction("blade", save=True)
-        self.run(100000)
-        self.push_with_force(1000, dump=True, time=100000)
-        self.run(100000)
-        self.move_distance("blade", [0, 0, -0.1], [0, 0., -0.1])
-
-    def test3(self):
-        """ Simple Test function
-        """
-        self.fill()
-        self.run(100)
-
-        self.prepare_extraction("blade", save=True)
-        self.prepare_extraction("shear_head", save=True)
-        self.prepare_extraction("shear_blades", save=True)
-        self.pid_init(
-            "blade",
-            torque=0.01,
-            torque_axis=2,
-            max_rotation=100,
-            torque_k=100,
-        )
-
-        self.run(500)
-        self.set_rotation("blade", 30, direction=-1)
-
-        self.run(200)
-        self.set_rotation("blade", 30, direction=1)
-
-        self.run(200)
-        self.set_rotation("blade", 0, direction=1)
-
-        self.pid_unset("blade")
-        self.pid_init(
-            "blade",
-            force=[0, 0, 100],
-            max_velocity=0.1,
-            force_k=0.1,
-        )
-
-        self.run(2000)
-        self.pid_unset("blade")
-        self.pid_init(
-            "shear_head",
-            force=[0, 0, 1000],
-            max_velocity=0.1,
-            force_k=0.1,
-        )
-        self.pid_init(
-            "shear_blades",
-            force=[0, 0, 1000],
-            max_velocity=0.1,
-            force_k=0.1,
-            coupling="shear_head",
-        )
-
-        self.run(2000)
-        self.pid_unset("blade")
-        self.pid_init(
-            "blade",
-            force=[0, 0, 1002],
-            max_velocity=0.1,
-            force_k=0.1,
-        )
-        self.run(2000)
-
     def rheometer_run(
         self,
         rpm_down,
@@ -844,6 +748,12 @@ class Simulation:
         self.cmd((
             f"dump dmpstl all mesh/vtk 4000 {self.output}/blade_*.vtk "
             "blade stress wear"
+        ))
+        self.cmd((
+            'unfix granwalls'
+        ))
+        self.cmd((
+            'fix granwalls all wall/gran model hertz tangential history  rolling_friction cdt mesh n_meshes 2 meshes cad blade'
         ))
 
         self.fill()
@@ -989,141 +899,6 @@ class Simulation:
             # stop rotation
             self.move_manager("shear_head", rotation=[0, -1])
             self.move_manager("shear_blades", rotation=[0, -1])
-            self.run(10000)
-            # finish, next run
-
-    def schulze_box_vel(self, vel):
-        """ Set the Linear velocity of the Schulze box.
-
-        Parameters
-        ----------
-        vel : float
-            Linear velocity of the Schulze.
-        """
-        self.cmd("unfix granwalls")
-        self.cmd((
-            "fix cad all mesh/surface/stress file  mesh/linear_box.stl  "
-            "heal auto_remove_duplicates type 2 scale 0.001 surface_vel "
-            f"{vel} 0. 0. wear finnie "
-        ))
-
-        self.cmd((
-            "fix granwalls all wall/gran model hertz tangential history "
-            "cohesion sjkr rolling_friction cdt  mesh n_meshes 3 meshes cad "
-            "shear_head shear_blades"
-        ))
-
-    def schulze_linear(self):
-        """ Schulze linear script.
-        This script runs shear tests with the linear Schulze.
-        Pressures applied: 2020, 1420, 920, 420 Pa
-        """
-        area = 0.048 * 0.046
-        velocity = 0.1
-        time_to_rotate = 150000
-
-        self.fill()
-        self.prepare_extraction("shear_head", save=True)
-        self.prepare_extraction("shear_blades", save=True)
-        self.pid_init(
-            "shear_head",
-            force=[0, 0, 3000 * area],    # convert pressure to force
-            max_velocity=0.1,             # max speed is 0.1 m/s
-            force_k=0.02                  # control constant
-        )
-
-        # couple the blades to the head
-        self.pid_init("shear_blades", coupling="shear_head")
-
-        # self.run(40000)
-        self.schulze_box_vel(velocity)
-        self.run(30000)
-        self.schulze_box_vel(0.0)
-        self.save_state("pre_sheared.simsave")
-
-        for normal_pressure in [2020, 1420, 920, 420]:
-            self.load_state("pre_sheared.simsave")
-
-            # after load state we need to reinit the meshes
-            self.prepare_extraction(
-                "shear_head",
-                save=True,
-                extra_name=f"n_stress_{normal_pressure}_kpa",
-            )
-
-            self.prepare_extraction(
-                "shear_blades",
-                save=True,
-                extra_name=f"n_stress_{normal_pressure}_kpa",
-            )
-
-            self.run(5000)
-
-            # Convert pressure to force
-            self.pid_init(
-                "shear_head",
-                force=[0, 0, normal_pressure * area],
-                max_velocity=0.1,    # max speed is 0.1 m/s
-                force_k=0.02,         # control constant
-            )
-
-            self.pid_init("shear_blades", coupling="shear_head")
-
-            # particles should be already in contact
-            # shear now
-            self.run(5000)
-            self.schulze_box_vel(velocity)
-            self.run(time_to_rotate)
-
-    def schulze_normal(self):
-        r1 = 0.1  # 10 cm radius
-        r2 = 0.05
-        area = np.pi * (r1**2 - r2**2)
-        velocity = 0.1
-        time_to_rotate = 50000
-        rpm = 5
-        self.fill()
-        self.prepare_extraction("shear_head", save=True)
-        self.prepare_extraction("shear_blades", save=True)
-        self.pid_init(
-            "shear_head",
-            force=[0, 0, 3000 * area],  # convert pressure to force
-            max_velocity=0.1,  # max speed is 0.1 m/s
-            force_k=0.015  # control constant
-        )
-        # couple the blades to the head
-        self.pid_init("shear_blades", coupling="shear_head")
-        self.run(20000)
-        self.move_manager("cad", rotation=[rpm, 1])
-        self.run(10000)
-        self.move_manager("cad", rotation=[rpm, -1])
-        self.run(10000)
-        self.move_manager("cad", rotation=[0, 1])
-        self.save_state("pre_sheared.simsave")
-
-        for normal_pressure in [2020, 1420, 920]:
-            self.load_state("pre_sheared.simsave")
-
-            # after load state we need to reinit the meshes
-            self.prepare_extraction(
-                "shear_head", save=True, extra_name=f"n_stress_{normal_pressure}_kpa")
-            self.prepare_extraction(
-                "shear_blades", save=True, extra_name=f"n_stress_{normal_pressure}_kpa")
-            self.run(1000)
-            self.pid_init(
-                "shear_head",
-                # convert pressure to force
-                force=[0, 0, normal_pressure * area],
-                max_velocity=0.1,  # max speed is 0.1 m/s
-                force_k=0.0015  # control constant
-            )
-            self.pid_init("shear_blades", coupling="shear_head")
-            self.run(1000)
-            # particles should be already in contact
-            # shear now
-            self.move_manager("cad", rotation=[rpm, 1])
-            self.run(time_to_rotate)
-            self.move_manager("cad", rotation=[0, 1])
 
     def __del__(self):
         """ Close the simulation.
@@ -1133,14 +908,10 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    # Usage:
-    # sim = FT4Rheometer("liggghts_script", "output_folder")
-    # sim.rheometer_run(rpm_down, rpm_up, lin_down, lin_up)
-
     # Use command-line arguments if supplied, otherwise use defaults
     script_path = sys.argv[1] if len(sys.argv) >= 2 else "ft4.sim"
     output_path = sys.argv[2] if len(sys.argv) >= 3 else "sim_outputs"
 
-    sim = Simulation(script_path, output_path)
-    #sim.ft4_rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
+    sim = FT4Simulation(script_path, output_path)
+    # sim.ft4_rheometer_run(39.6, 23.8, -0.0087, 0.0052, upwards=False)
     sim.ft4_shear_cell_run()
