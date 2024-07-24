@@ -135,7 +135,7 @@ fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
 
 # STL Geometries: drum / faces
 fix cad all mesh/surface/stress file    mesh/rotating_drum_mm.stl       type 2 scale 0.001 wear finnie
-fix side all mesh/surface/stress file   mesh/rotating_drum_side_mm.stl  type 3 scale 0.001
+fix side all mesh/surface/stress file   mesh/gd_side_remesh2.stl        type 3 scale 1
 fix inface all mesh/surface file        mesh/inface_mm.stl              type 3 scale 0.001 move 0.0 0.0 -0.02
 
 
